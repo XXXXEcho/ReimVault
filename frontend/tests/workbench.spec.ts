@@ -48,6 +48,18 @@ describe('workbench pages', () => {
     expect(wrapper.text()).not.toContain('午餐');
   });
 
+  it('opens material previewer from employee drawer preview event', async () => {
+    const wrapper = mount(EmployeeWorkbench, { global: { stubs: ['RouterLink'] } });
+    await flushPromises();
+    await wrapper.find('[data-test="record-row-2"]').trigger('click');
+
+    wrapper.findComponent({ name: 'RecordDrawer' }).vm.$emit('preview', 8);
+    await flushPromises();
+
+    expect(wrapper.find('[aria-label="材料预览"]').exists()).toBe(true);
+    expect(wrapper.find('[data-test="download-active"]').attributes('href')).toBe('/api/attachments/8');
+  });
+
   it('renders admin metrics, passes filters, and opens drawer by row click', async () => {
     const wrapper = mount(AdminWorkbench);
     await flushPromises();

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
 import EmptyState from '../../components/EmptyState.vue';
+import MaterialPreviewer from '../../components/MaterialPreviewer.vue';
 import MetricCard from '../../components/MetricCard.vue';
 import RecordDrawer from '../../components/RecordDrawer.vue';
 import WorkbenchFilters from '../../components/WorkbenchFilters.vue';
@@ -14,6 +15,7 @@ import {
 
 const records = ref<ReimbursementRecord[]>([]);
 const selected = ref<ReimbursementRecord | null>(null);
+const previewAttachmentId = ref<number | null>(null);
 const filters = ref({ employeeId: '', categoryId: '', status: 'SUBMITTED', from: '', to: '', keyword: '' });
 
 function params(): AdminReimbursementFilters {
@@ -41,6 +43,8 @@ function hasPaymentVoucher(record: ReimbursementRecord) {
   return (record.attachments ?? []).some((attachment) => attachment.type === 'PAYMENT_VOUCHER');
 }
 
+const previewAttachments = computed(() => selected.value?.attachments ?? []);
+
 const metrics = computed(() => ({
   draft: records.value.filter((record) => record.status === 'DRAFT').length,
   submitted: records.value.filter((record) => record.status === 'SUBMITTED').length,
@@ -55,6 +59,12 @@ function resetFilters() {
 
 function openDrawer(record: ReimbursementRecord) {
   selected.value = record;
+  previewAttachmentId.value = null;
+}
+
+function closeDrawer() {
+  selected.value = null;
+  previewAttachmentId.value = null;
 }
 
 onMounted(load);
@@ -85,9 +95,16 @@ onMounted(load);
       v-if="selected"
       :record="selected"
       :role="'ADMIN'"
-      @close="selected = null"
+      @close="closeDrawer"
       @saved="refreshSelected"
       @submitted="refreshSelected"
+      @preview="previewAttachmentId = $event"
+    />
+    <MaterialPreviewer
+      v-if="previewAttachmentId"
+      :attachments="previewAttachments"
+      :active-id="previewAttachmentId"
+      @close="previewAttachmentId = null"
     />
   </section>
 </template>

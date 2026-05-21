@@ -2,6 +2,7 @@
 import { computed, onMounted, ref } from 'vue';
 import { RouterLink } from 'vue-router';
 import EmptyState from '../../components/EmptyState.vue';
+import MaterialPreviewer from '../../components/MaterialPreviewer.vue';
 import MetricCard from '../../components/MetricCard.vue';
 import RecordDrawer from '../../components/RecordDrawer.vue';
 import WorkbenchFilters from '../../components/WorkbenchFilters.vue';
@@ -15,6 +16,7 @@ import {
 
 const records = ref<ReimbursementRecord[]>([]);
 const selected = ref<ReimbursementRecord | null>(null);
+const previewAttachmentId = ref<number | null>(null);
 const filters = ref({ categoryId: '', status: '', from: '', to: '', keyword: '' });
 
 function params(): EmployeeReimbursementFilters {
@@ -42,9 +44,16 @@ function resetFilters() {
   void load();
 }
 
+function closeDrawer() {
+  selected.value = null;
+  previewAttachmentId.value = null;
+}
+
 function hasPaymentVoucher(record: ReimbursementRecord) {
   return (record.attachments ?? []).some((attachment) => attachment.type === 'PAYMENT_VOUCHER');
 }
+
+const previewAttachments = computed(() => selected.value?.attachments ?? []);
 
 const metrics = computed(() => ({
   draft: records.value.filter((record) => record.status === 'DRAFT').length,
@@ -75,7 +84,7 @@ onMounted(load);
 
     <WorkbenchFilters v-model="filters" @apply="load" @reset="resetFilters" />
 
-    <WorkbenchRecordTable v-if="records.length" :records="records" @open="selected = $event" />
+    <WorkbenchRecordTable v-if="records.length" :records="records" @open="selected = $event; previewAttachmentId = null" />
     <EmptyState v-else title="暂无报销记录" description="创建第一条报销后，它会显示在这里。">
       <template #action>
         <RouterLink class="primary-action" to="/reimbursements/new">新建报销</RouterLink>
@@ -86,9 +95,16 @@ onMounted(load);
       v-if="selected"
       :record="selected"
       :role="'EMPLOYEE'"
-      @close="selected = null"
+      @close="closeDrawer"
       @saved="refreshSelected"
       @submitted="refreshSelected"
+      @preview="previewAttachmentId = $event"
+    />
+    <MaterialPreviewer
+      v-if="previewAttachmentId"
+      :attachments="previewAttachments"
+      :active-id="previewAttachmentId"
+      @close="previewAttachmentId = null"
     />
   </section>
 </template>
