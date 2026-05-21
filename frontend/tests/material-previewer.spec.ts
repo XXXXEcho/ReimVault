@@ -95,30 +95,45 @@ describe('MaterialPreviewer', () => {
     expect(document.activeElement).toBe(opener);
   });
 
-  it('keeps tab focus inside previewer controls', async () => {
-    const host = document.createElement('div');
-    const before = document.createElement('button');
-    const after = document.createElement('button');
-    before.textContent = 'before';
-    after.textContent = 'after';
-    host.appendChild(before);
-    document.body.appendChild(host);
-
-    const wrapper = mount(MaterialPreviewer, { props: { attachments, activeId: 1 }, attachTo: host });
-    host.appendChild(after);
+  it('wraps tab focus based on DOM order', async () => {
+    const wrapper = mount(MaterialPreviewer, { props: { attachments, activeId: 1 }, attachTo: document.body });
     await wrapper.vm.$nextTick();
 
-    const close = wrapper.find<HTMLButtonElement>('[data-test="close-preview"]').element;
+    const download = wrapper.find<HTMLAnchorElement>('[data-test="download-active"]').element;
     const next = wrapper.find<HTMLButtonElement>('[data-test="next-preview"]').element;
     const dialog = wrapper.find('[aria-label="材料预览"]');
 
-    close.focus();
+    download.focus();
     await dialog.trigger('keydown', { key: 'Tab', shiftKey: true });
     expect(document.activeElement).toBe(next);
 
+    next.focus();
     await dialog.trigger('keydown', { key: 'Tab' });
-    expect(document.activeElement).toBe(close);
-    expect(document.activeElement).not.toBe(before);
-    expect(document.activeElement).not.toBe(after);
+    expect(document.activeElement).toBe(download);
+  });
+
+  it('includes unsupported fallback links in the focus trap', async () => {
+    const wrapper = mount(MaterialPreviewer, { props: { attachments, activeId: 3 }, attachTo: document.body });
+    await wrapper.vm.$nextTick();
+
+    const download = wrapper.find<HTMLAnchorElement>('[data-test="download-active"]').element;
+    const fallbackDownload = wrapper.find<HTMLAnchorElement>('.material-previewer__fallback a').element;
+    const next = wrapper.find<HTMLButtonElement>('[data-test="next-preview"]').element;
+    const dialog = wrapper.find('[aria-label="材料预览"]');
+
+    fallbackDownload.focus();
+    expect(document.activeElement).toBe(fallbackDownload);
+
+    next.focus();
+    await dialog.trigger('keydown', { key: 'Tab', shiftKey: true });
+    expect(document.activeElement).toBe(next);
+
+    next.focus();
+    await dialog.trigger('keydown', { key: 'Tab' });
+    expect(document.activeElement).toBe(download);
+
+    download.focus();
+    await dialog.trigger('keydown', { key: 'Tab', shiftKey: true });
+    expect(document.activeElement).toBe(next);
   });
 });

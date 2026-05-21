@@ -40,10 +40,10 @@ function move(delta: number) {
 }
 
 function focusableControls() {
-  const selectors = ['[data-test="close-preview"]', '[data-test="download-active"]', '[data-test="previous-preview"]', '[data-test="next-preview"]'];
-  return selectors
-    .flatMap((selector) => Array.from(root.value?.querySelectorAll<HTMLElement>(selector) ?? []))
-    .filter((element) => !element.hasAttribute('disabled') && element.tabIndex !== -1);
+  const selector = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+  return Array.from(root.value?.querySelectorAll<HTMLElement>(selector) ?? []).filter(
+    (element) => !element.hasAttribute('disabled') && element.getAttribute('aria-hidden') !== 'true'
+  );
 }
 
 function trapTab(event: KeyboardEvent) {
