@@ -1,5 +1,7 @@
 package com.company.reimbursement.reimbursement;
 
+import com.company.reimbursement.attachment.AttachmentType;
+import com.company.reimbursement.attachment.ReimbursementAttachmentRepository;
 import com.company.reimbursement.category.ExpenseCategory;
 import com.company.reimbursement.category.ExpenseCategoryRepository;
 import com.company.reimbursement.user.User;
@@ -14,11 +16,13 @@ public class ReimbursementService {
     private final ReimbursementRepository records;
     private final UserRepository users;
     private final ExpenseCategoryRepository categories;
+    private final ReimbursementAttachmentRepository attachments;
 
-    public ReimbursementService(ReimbursementRepository records, UserRepository users, ExpenseCategoryRepository categories) {
+    public ReimbursementService(ReimbursementRepository records, UserRepository users, ExpenseCategoryRepository categories, ReimbursementAttachmentRepository attachments) {
         this.records = records;
         this.users = users;
         this.categories = categories;
+        this.attachments = attachments;
     }
 
     @Transactional
@@ -51,7 +55,7 @@ public class ReimbursementService {
     @Transactional
     public ReimbursementDtos.RecordResponse submit(String username, Long id) {
         ReimbursementRecord record = getOwnedRecord(username, id);
-        record.submit(0);
+        record.submit(attachments.countByRecordAndType(record, AttachmentType.PAYMENT_VOUCHER));
         return ReimbursementDtos.RecordResponse.from(record);
     }
 

@@ -20,6 +20,11 @@ public class GlobalExceptionHandler {
         return ResponseEntity.badRequest().body(ApiError.of("VALIDATION_ERROR", "请求参数不合法"));
     }
 
+    @ExceptionHandler(SecurityException.class)
+    ResponseEntity<ApiError> forbidden(SecurityException ex) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ApiError.of("FORBIDDEN", ex.getMessage()));
+    }
+
     @ExceptionHandler(EntityNotFoundException.class)
     ResponseEntity<ApiError> notFound(EntityNotFoundException ex) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ApiError.of("NOT_FOUND", ex.getMessage()));
