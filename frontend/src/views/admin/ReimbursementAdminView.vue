@@ -2,11 +2,11 @@
 import { computed, onMounted, ref } from 'vue';
 import EmptyState from '../../components/EmptyState.vue';
 import MetricCard from '../../components/MetricCard.vue';
+import RecordDrawer from '../../components/RecordDrawer.vue';
 import WorkbenchFilters from '../../components/WorkbenchFilters.vue';
 import WorkbenchRecordTable from '../../components/WorkbenchRecordTable.vue';
 import {
   listAdminReimbursements,
-  updateAdminRemark,
   type AdminReimbursementFilters,
   type ReimbursementRecord,
   type ReimbursementStatus
@@ -14,7 +14,6 @@ import {
 
 const records = ref<ReimbursementRecord[]>([]);
 const selected = ref<ReimbursementRecord | null>(null);
-const selectedRemark = ref('');
 const filters = ref({ employeeId: '', categoryId: '', status: 'SUBMITTED', from: '', to: '', keyword: '' });
 
 function params(): AdminReimbursementFilters {
@@ -51,12 +50,6 @@ function resetFilters() {
 
 function openDrawer(record: ReimbursementRecord) {
   selected.value = record;
-  selectedRemark.value = record.adminRemark ?? '';
-}
-
-async function saveRemark(id: number) {
-  await updateAdminRemark(id, selectedRemark.value);
-  await load();
 }
 
 onMounted(load);
@@ -83,16 +76,14 @@ onMounted(load);
     <WorkbenchRecordTable v-if="records.length" :records="records" admin @open="openDrawer" />
     <EmptyState v-else title="暂无待处理记录" description="符合筛选条件的报销会显示在这里。" />
 
-    <aside v-if="selected" class="record-drawer" role="dialog" aria-label="记录详情">
-      <button class="record-drawer__close" type="button" aria-label="关闭记录详情" @click="selected = null">关闭</button>
-      <h2>记录详情</h2>
-      <p>{{ selected.purpose }}</p>
-      <label class="record-drawer__field">
-        <span>管理员备注</span>
-        <textarea v-model="selectedRemark" aria-label="管理员备注" rows="4" />
-      </label>
-      <button type="button" @click="saveRemark(selected.id)">保存备注</button>
-    </aside>
+    <RecordDrawer
+      v-if="selected"
+      :record="selected"
+      :role="'ADMIN'"
+      @close="selected = null"
+      @saved="selected = $event; load()"
+      @submitted="selected = $event; load()"
+    />
   </section>
 </template>
 
@@ -120,30 +111,4 @@ onMounted(load);
   gap: var(--space-4);
 }
 
-.record-drawer {
-  position: fixed;
-  top: 0;
-  right: 0;
-  z-index: 20;
-  width: min(420px, 100vw);
-  height: 100vh;
-  display: grid;
-  align-content: start;
-  gap: var(--space-4);
-  padding: var(--space-6);
-  border-left: 1px solid var(--color-border);
-  background: var(--color-surface);
-  box-shadow: var(--shadow-lg);
-}
-
-.record-drawer__close,
-.record-drawer button,
-.record-drawer textarea {
-  min-height: 44px;
-}
-
-.record-drawer__field {
-  display: grid;
-  gap: var(--space-2);
-}
 </style>

@@ -1,0 +1,272 @@
+<script setup lang="ts">
+import { computed, onMounted, reactive, watch } from 'vue';
+import { listCategories, type Category } from '../api/categories';
+import {
+  submitReimbursement,
+  updateAdminRemark,
+  updateReimbursement,
+  type AttachmentType,
+  type ReimbursementInput,
+  type ReimbursementRecord
+} from '../api/reimbursements';
+import MaterialCompleteness from './MaterialCompleteness.vue';
+import StatusTag from './StatusTag.vue';
+
+const props = defineProps<{
+  record: ReimbursementRecord;
+  role: 'EMPLOYEE' | 'ADMIN';
+}>();
+
+const emit = defineEmits<{
+  close: [];
+  saved: [record: ReimbursementRecord];
+  submitted: [record: ReimbursementRecord];
+  preview: [attachmentId: number];
+}>();
+
+const categories = reactive<{ items: Category[] }>({ items: [] });
+const form = reactive({
+  amount: 0,
+  categoryId: 0,
+  purpose: '',
+  paymentTime: '',
+  adminRemark: ''
+});
+
+const isDraftEmployee = computed(() => props.role === 'EMPLOYEE' && props.record.status === 'DRAFT');
+const canEditAdminRemark = computed(() => props.role === 'ADMIN' && props.record.status === 'SUBMITTED');
+const paymentVoucherCount = computed(() => countAttachments('PAYMENT_VOUCHER'));
+const orderScreenshotCount = computed(() => countAttachments('ORDER_SCREENSHOT'));
+const invoiceCount = computed(() => countAttachments('INVOICE'));
+
+function countAttachments(type: AttachmentType) {
+  return (props.record.attachments ?? []).filter((attachment) => attachment.type === type).length;
+}
+
+function syncForm(record: ReimbursementRecord) {
+  form.amount = record.amount;
+  form.categoryId = record.categoryId;
+  form.purpose = record.purpose;
+  form.paymentTime = record.paymentTime;
+  form.adminRemark = record.adminRemark ?? '';
+}
+
+function draftPayload(): ReimbursementInput {
+  return {
+    amount: Number(form.amount),
+    categoryId: Number(form.categoryId),
+    purpose: form.purpose,
+    paymentTime: form.paymentTime
+  };
+}
+
+async function saveDraft() {
+  const response = await updateReimbursement(props.record.id, draftPayload());
+  emit('saved', response.data);
+  syncForm(response.data);
+  return response.data;
+}
+
+async function submitDraft() {
+  if (paymentVoucherCount.value === 0) return;
+  const saved = await saveDraft();
+  const response = await submitReimbursement(saved.id);
+  emit('submitted', response.data);
+  syncForm(response.data);
+}
+
+async function saveRemark() {
+  const response = await updateAdminRemark(props.record.id, form.adminRemark);
+  emit('saved', response.data);
+  syncForm(response.data);
+}
+
+function onKeydown(event: KeyboardEvent) {
+  if (event.key === 'Escape') emit('close');
+}
+
+watch(() => props.record, syncForm, { immediate: true });
+
+onMounted(async () => {
+  const response = await listCategories();
+  categories.items = response.data;
+});
+</script>
+
+<template>
+  <aside class="record-drawer" role="dialog" aria-label="记录详情" aria-modal="true" tabindex="-1" @keydown="onKeydown">
+    <button class="record-drawer__close" type="button" aria-label="关闭记录详情" @click="emit('close')">关闭</button>
+
+    <header class="record-drawer__header">
+      <div>
+        <p class="record-drawer__eyebrow">记录详情</p>
+        <h2>{{ props.record.purpose }}</h2>
+      </div>
+      <StatusTag v-if="props.role === 'ADMIN' || props.record.status !== 'SUBMITTED'" :status="props.record.status" />
+    </header>
+
+    <MaterialCompleteness
+      :payment-voucher-count="paymentVoucherCount"
+      :order-screenshot-count="orderScreenshotCount"
+      :invoice-count="invoiceCount"
+    />
+
+    <form class="record-drawer__form" @submit.prevent="saveDraft">
+      <label class="record-drawer__field">
+        <span>金额</span>
+        <input v-model.number="form.amount" aria-label="金额" type="number" min="0" step="0.01" :disabled="!isDraftEmployee" />
+      </label>
+
+      <label class="record-drawer__field">
+        <span>费用类别</span>
+        <select v-model.number="form.categoryId" aria-label="费用类别" :disabled="!isDraftEmployee">
+          <option v-for="category in categories.items" :key="category.id" :value="category.id">{{ category.name }}</option>
+        </select>
+      </label>
+
+      <label class="record-drawer__field">
+        <span>用途说明</span>
+        <textarea v-model="form.purpose" aria-label="用途说明" rows="4" :disabled="!isDraftEmployee" />
+      </label>
+
+      <label class="record-drawer__field">
+        <span>付款时间</span>
+        <input v-model="form.paymentTime" aria-label="付款时间" type="text" :disabled="!isDraftEmployee" />
+      </label>
+
+      <div v-if="isDraftEmployee" class="record-drawer__actions">
+        <button type="button" data-test="save-draft" @click="saveDraft">保存草稿</button>
+        <button type="button" data-test="submit-draft" :disabled="paymentVoucherCount === 0" @click="submitDraft">提交</button>
+      </div>
+    </form>
+
+    <section class="record-drawer__attachments" aria-label="材料列表">
+      <h3>材料</h3>
+      <button
+        v-for="attachment in props.record.attachments"
+        :key="attachment.id"
+        type="button"
+        class="record-drawer__attachment"
+        @click="emit('preview', attachment.id)"
+      >
+        {{ attachment.originalFilename }}
+      </button>
+      <p v-if="!props.record.attachments.length">暂无材料</p>
+    </section>
+
+    <label class="record-drawer__field">
+      <span>管理员备注</span>
+      <textarea v-model="form.adminRemark" aria-label="管理员备注" rows="4" :disabled="!canEditAdminRemark" />
+    </label>
+    <button v-if="canEditAdminRemark" type="button" data-test="save-remark" @click="saveRemark">保存备注</button>
+  </aside>
+</template>
+
+<style scoped>
+.record-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  z-index: 20;
+  width: min(460px, 100vw);
+  height: 100vh;
+  overflow-y: auto;
+  display: grid;
+  align-content: start;
+  gap: var(--space-4);
+  padding: var(--space-6);
+  border-left: 1px solid var(--color-border);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-lg);
+}
+
+.record-drawer__header {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-4);
+  align-items: start;
+}
+
+.record-drawer__header h2,
+.record-drawer__eyebrow,
+.record-drawer__attachments h3,
+.record-drawer__attachments p {
+  margin: 0;
+}
+
+.record-drawer__eyebrow {
+  color: var(--color-text-muted);
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+
+.record-drawer__form,
+.record-drawer__field,
+.record-drawer__attachments {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.record-drawer__field span {
+  font-weight: 700;
+}
+
+.record-drawer__close,
+.record-drawer__actions button,
+.record-drawer > button,
+.record-drawer input,
+.record-drawer select,
+.record-drawer textarea,
+.record-drawer__attachment {
+  min-height: 44px;
+}
+
+.record-drawer input,
+.record-drawer select,
+.record-drawer textarea {
+  width: 100%;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
+.record-drawer input:disabled,
+.record-drawer select:disabled,
+.record-drawer textarea:disabled {
+  background: var(--color-surface-muted);
+  color: var(--color-text-muted);
+}
+
+.record-drawer__close {
+  justify-self: end;
+}
+
+.record-drawer__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.record-drawer button {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 0 var(--space-4);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-weight: 700;
+}
+
+.record-drawer button:not(:disabled) {
+  cursor: pointer;
+}
+
+.record-drawer button:disabled {
+  opacity: 0.5;
+}
+
+.record-drawer__attachment {
+  text-align: left;
+}
+</style>

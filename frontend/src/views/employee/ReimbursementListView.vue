@@ -3,6 +3,7 @@ import { computed, onMounted, ref } from 'vue';
 import { RouterLink } from 'vue-router';
 import EmptyState from '../../components/EmptyState.vue';
 import MetricCard from '../../components/MetricCard.vue';
+import RecordDrawer from '../../components/RecordDrawer.vue';
 import WorkbenchFilters from '../../components/WorkbenchFilters.vue';
 import WorkbenchRecordTable from '../../components/WorkbenchRecordTable.vue';
 import {
@@ -76,11 +77,14 @@ onMounted(load);
       </template>
     </EmptyState>
 
-    <aside v-if="selected" class="record-drawer" role="dialog" aria-label="记录详情">
-      <button class="record-drawer__close" type="button" aria-label="关闭记录详情" @click="selected = null">关闭</button>
-      <h2>记录详情</h2>
-      <p>{{ selected.purpose }}</p>
-    </aside>
+    <RecordDrawer
+      v-if="selected"
+      :record="selected"
+      :role="'EMPLOYEE'"
+      @close="selected = null"
+      @saved="selected = $event; load()"
+      @submitted="selected = $event; load()"
+    />
   </section>
 </template>
 
@@ -115,26 +119,12 @@ onMounted(load);
   gap: var(--space-4);
 }
 
-.primary-action,
-.record-drawer__close {
+.primary-action {
   min-height: 44px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   border-radius: var(--radius-md);
   padding: 0 var(--space-4);
-}
-
-.record-drawer {
-  position: fixed;
-  top: 0;
-  right: 0;
-  z-index: 20;
-  width: min(420px, 100vw);
-  height: 100vh;
-  padding: var(--space-6);
-  border-left: 1px solid var(--color-border);
-  background: var(--color-surface);
-  box-shadow: var(--shadow-lg);
 }
 </style>
