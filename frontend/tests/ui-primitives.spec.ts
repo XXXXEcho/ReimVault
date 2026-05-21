@@ -33,9 +33,25 @@ describe('UI primitives', () => {
   });
 
   it('confirms before emitting confirm action', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
-    const wrapper = mount(ConfirmAction, { props: { message: '确认删除？' }, slots: { default: '<button>删除</button>' } });
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const wrapper = mount(ConfirmAction, { props: { message: '确认删除？' }, slots: { default: '删除' } });
     await wrapper.find('button').trigger('click');
     expect(wrapper.emitted('confirm')).toHaveLength(1);
+    confirm.mockRestore();
+  });
+
+  it('does not emit when confirmation is canceled', async () => {
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    const wrapper = mount(ConfirmAction, { props: { message: '确认删除？' }, slots: { default: '删除' } });
+    await wrapper.find('button').trigger('click');
+    expect(wrapper.emitted('confirm')).toBeUndefined();
+    confirm.mockRestore();
+  });
+
+  it('renders a semantic button trigger', () => {
+    const wrapper = mount(ConfirmAction, { props: { message: '确认归档？' }, slots: { default: '归档' } });
+    const trigger = wrapper.get('button');
+    expect(trigger.attributes('type')).toBe('button');
+    expect(trigger.text()).toBe('归档');
   });
 });

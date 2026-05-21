@@ -10,13 +10,20 @@ function confirmAction() {
 </script>
 
 <template>
-  <span class="confirm-action" @click="confirmAction">
+  <button type="button" class="confirm-action" @click="confirmAction">
     <slot />
-  </span>
+  </button>
 </template>
 
 <style scoped>
 .confirm-action {
   display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: inherit;
 }
 </style>
