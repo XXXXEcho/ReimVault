@@ -60,6 +60,31 @@ describe('workbench pages', () => {
     expect(wrapper.find('[data-test="download-active"]').attributes('href')).toBe('/api/attachments/8');
   });
 
+  it('removes employee previewer when preview close is emitted', async () => {
+    const wrapper = mount(EmployeeWorkbench, { global: { stubs: ['RouterLink'] } });
+    await flushPromises();
+    await wrapper.find('[data-test="record-row-2"]').trigger('click');
+    wrapper.findComponent({ name: 'RecordDrawer' }).vm.$emit('preview', 8);
+    await flushPromises();
+
+    wrapper.findComponent({ name: 'MaterialPreviewer' }).vm.$emit('close');
+    await flushPromises();
+
+    expect(wrapper.find('[aria-label="材料预览"]').exists()).toBe(false);
+  });
+
+  it('opens material previewer from admin drawer preview event', async () => {
+    const wrapper = mount(AdminWorkbench);
+    await flushPromises();
+    await wrapper.find('[data-test="record-row-2"]').trigger('click');
+
+    wrapper.findComponent({ name: 'RecordDrawer' }).vm.$emit('preview', 8);
+    await flushPromises();
+
+    expect(wrapper.find('[aria-label="材料预览"]').exists()).toBe(true);
+    expect(wrapper.find('[data-test="download-active"]').attributes('href')).toBe('/api/attachments/8');
+  });
+
   it('renders admin metrics, passes filters, and opens drawer by row click', async () => {
     const wrapper = mount(AdminWorkbench);
     await flushPromises();

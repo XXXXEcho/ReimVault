@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import type { AttachmentRecord } from '../api/reimbursements';
 
 const props = defineProps<{
@@ -11,8 +11,10 @@ const emit = defineEmits<{
   close: [];
 }>();
 
+const root = ref<HTMLElement | null>(null);
 const closeButton = ref<HTMLButtonElement | null>(null);
 const currentId = ref(props.activeId);
+let previousFocus: Element | null = null;
 
 const currentIndex = computed(() => props.attachments.findIndex((attachment) => attachment.id === currentId.value));
 const current = computed(() => props.attachments[currentIndex.value] ?? props.attachments[0] ?? null);
@@ -37,30 +39,75 @@ function move(delta: number) {
   currentId.value = props.attachments[next].id;
 }
 
+function focusableControls() {
+  const selectors = ['[data-test="close-preview"]', '[data-test="download-active"]', '[data-test="previous-preview"]', '[data-test="next-preview"]'];
+  return selectors
+    .flatMap((selector) => Array.from(root.value?.querySelectorAll<HTMLElement>(selector) ?? []))
+    .filter((element) => !element.hasAttribute('disabled') && element.tabIndex !== -1);
+}
+
+function trapTab(event: KeyboardEvent) {
+  const controls = focusableControls();
+  if (!controls.length) return;
+  const first = controls[0];
+  const last = controls[controls.length - 1];
+  const active = document.activeElement;
+
+  if (event.shiftKey && active === first) {
+    event.preventDefault();
+    last.focus();
+    return;
+  }
+
+  if (!event.shiftKey && active === last) {
+    event.preventDefault();
+    first.focus();
+  }
+}
+
 function onKeydown(event: KeyboardEvent) {
-  if (event.key === 'Escape') emit('close');
-  if (event.key === 'ArrowRight') move(1);
-  if (event.key === 'ArrowLeft') move(-1);
+  if (event.key === 'Escape') {
+    emit('close');
+    return;
+  }
+  if (event.key === 'ArrowRight') {
+    event.preventDefault();
+    move(1);
+    return;
+  }
+  if (event.key === 'ArrowLeft') {
+    event.preventDefault();
+    move(-1);
+    return;
+  }
+  if (event.key === 'Tab') trapTab(event);
 }
 
 watch(() => [props.activeId, props.attachments] as const, syncActive, { deep: true });
 
 onMounted(async () => {
+  previousFocus = document.activeElement;
   syncActive();
   await nextTick();
   closeButton.value?.focus();
 });
+
+onBeforeUnmount(() => {
+  if (previousFocus instanceof HTMLElement && document.contains(previousFocus)) {
+    previousFocus.focus();
+  }
+});
 </script>
 
 <template>
-  <section class="material-previewer" role="dialog" aria-label="材料预览" aria-modal="true" tabindex="-1" @keydown="onKeydown">
+  <section ref="root" class="material-previewer" role="dialog" aria-label="材料预览" aria-modal="true" tabindex="-1" @keydown="onKeydown">
     <header class="material-previewer__bar">
       <div>
         <p class="material-previewer__eyebrow">材料预览</p>
         <h2>{{ filename }}</h2>
       </div>
       <div class="material-previewer__actions">
-        <a v-if="current" data-test="download-active" :href="src" target="_blank" rel="noopener">下载</a>
+        <a v-if="current" data-test="download-active" :href="src" :download="filename" target="_blank" rel="noopener">下载</a>
         <button ref="closeButton" type="button" data-test="close-preview" @click="emit('close')">关闭</button>
       </div>
     </header>
@@ -69,12 +116,12 @@ onMounted(async () => {
       <button type="button" data-test="previous-preview" :disabled="!hasMultiple" aria-label="上一份材料" @click="move(-1)">上一份</button>
       <div class="material-previewer__stage">
         <img v-if="current && isImage" :src="src" :alt="filename" />
-        <object v-else-if="current && isPdf" :data="src" type="application/pdf">
-          <a :href="src" target="_blank" rel="noopener">下载 {{ filename }}</a>
+        <object v-else-if="current && isPdf" :data="src" type="application/pdf" :title="filename" :aria-label="filename">
+          <a :href="src" :download="filename" target="_blank" rel="noopener">下载 {{ filename }}</a>
         </object>
         <div v-else-if="current" class="material-previewer__fallback">
           <p>该文件类型暂不支持在线预览，请下载后查看。</p>
-          <a :href="src" target="_blank" rel="noopener">下载 {{ filename }}</a>
+          <a :href="src" :download="filename" target="_blank" rel="noopener">下载 {{ filename }}</a>
         </div>
         <p v-else>暂无可预览材料</p>
       </div>
@@ -200,11 +247,17 @@ onMounted(async () => {
   .material-previewer__body {
     display: grid;
     grid-template-columns: 1fr 1fr;
+    grid-template-rows: minmax(0, 1fr) auto;
+    min-height: 0;
   }
 
   .material-previewer__stage {
     grid-column: 1 / -1;
     grid-row: 1;
+  }
+
+  .material-previewer__body > button {
+    grid-row: 2;
   }
 }
 </style>
