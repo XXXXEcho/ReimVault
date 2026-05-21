@@ -7,7 +7,11 @@ import com.company.reimbursement.category.ExpenseCategoryRepository;
 import com.company.reimbursement.user.User;
 import com.company.reimbursement.user.UserRepository;
 import jakarta.persistence.EntityNotFoundException;
+import jakarta.persistence.criteria.Predicate;
+import java.time.ZoneOffset;
+import java.util.ArrayList;
 import java.util.List;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -60,10 +64,22 @@ public class ReimbursementService {
     }
 
     @Transactional(readOnly = true)
-    public List<ReimbursementDtos.RecordResponse> listAll() {
-        return records.findAll().stream()
+    public List<ReimbursementDtos.RecordResponse> listAll(ReimbursementDtos.AdminListFilter filter) {
+        return records.findAll(adminFilter(filter)).stream()
                 .map(ReimbursementDtos.RecordResponse::from)
                 .toList();
+    }
+
+    private Specification<ReimbursementRecord> adminFilter(ReimbursementDtos.AdminListFilter filter) {
+        return (root, query, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
+            if (filter.employeeId() != null) predicates.add(cb.equal(root.get("employee").get("id"), filter.employeeId()));
+            if (filter.categoryId() != null) predicates.add(cb.equal(root.get("category").get("id"), filter.categoryId()));
+            if (filter.status() != null) predicates.add(cb.equal(root.get("status"), filter.status()));
+            if (filter.from() != null) predicates.add(cb.greaterThanOrEqualTo(root.get("paymentTime"), filter.from().atStartOfDay().toInstant(ZoneOffset.UTC)));
+            if (filter.to() != null) predicates.add(cb.lessThan(root.get("paymentTime"), filter.to().plusDays(1).atStartOfDay().toInstant(ZoneOffset.UTC)));
+            return cb.and(predicates.toArray(Predicate[]::new));
+        };
     }
 
     @Transactional

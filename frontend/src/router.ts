@@ -1,0 +1,40 @@
+import { createRouter, createWebHistory } from 'vue-router';
+import { useAuthStore } from './stores/auth';
+import LoginView from './views/LoginView.vue';
+import ReimbursementListView from './views/employee/ReimbursementListView.vue';
+import ReimbursementEditView from './views/employee/ReimbursementEditView.vue';
+import UserAdminView from './views/admin/UserAdminView.vue';
+import CategoryAdminView from './views/admin/CategoryAdminView.vue';
+import ReimbursementAdminView from './views/admin/ReimbursementAdminView.vue';
+import BatchAdminView from './views/admin/BatchAdminView.vue';
+
+const router = createRouter({
+  history: createWebHistory(),
+  routes: [
+    { path: '/', redirect: '/reimbursements' },
+    { path: '/login', component: LoginView },
+    { path: '/reimbursements', component: ReimbursementListView },
+    { path: '/reimbursements/new', component: ReimbursementEditView },
+    { path: '/reimbursements/:id', component: ReimbursementEditView },
+    { path: '/admin/users', component: UserAdminView, meta: { requiresAdmin: true } },
+    { path: '/admin/categories', component: CategoryAdminView, meta: { requiresAdmin: true } },
+    { path: '/admin/reimbursements', component: ReimbursementAdminView, meta: { requiresAdmin: true } },
+    { path: '/admin/batches', component: BatchAdminView, meta: { requiresAdmin: true } }
+  ]
+});
+
+router.beforeEach(async (to) => {
+  if (to.path === '/login') return true;
+  const auth = useAuthStore();
+  if (!auth.user) {
+    try {
+      await auth.loadCurrentUser();
+    } catch {
+      return '/login';
+    }
+  }
+  if (to.meta.requiresAdmin && auth.user?.role !== 'ADMIN') return '/reimbursements';
+  return true;
+});
+
+export default router;

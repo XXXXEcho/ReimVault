@@ -2,12 +2,16 @@ package com.company.reimbursement.reimbursement;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDate;
 
 public class ReimbursementDtos {
     public record SaveRecordRequest(BigDecimal amount, Long categoryId, String purpose, Instant paymentTime) {
     }
 
     public record AdminRemarkRequest(String adminRemark) {
+    }
+
+    public record AdminListFilter(Long employeeId, Long categoryId, ReimbursementStatus status, LocalDate from, LocalDate to) {
     }
 
     public record RecordResponse(

@@ -8,6 +8,8 @@ public interface FileStorageService {
 
     Resource load(String storagePath);
 
+    void delete(String storagePath);
+
     boolean exists(String storagePath);
 
     record StoredFile(String storagePath, String originalFilename, String contentType, long sizeBytes) {

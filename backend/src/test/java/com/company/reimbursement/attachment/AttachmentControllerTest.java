@@ -1,6 +1,7 @@
 package com.company.reimbursement.attachment;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
@@ -150,4 +151,32 @@ class AttachmentControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(content().bytes("admin-download".getBytes()));
     }
+
+    @Test
+    @WithMockUser(username = "employee", roles = "EMPLOYEE")
+    void employeeDeletesOwnDraftAttachment() throws Exception {
+        MockMultipartFile file = new MockMultipartFile("file", "pay.png", MediaType.IMAGE_PNG_VALUE, "image-bytes".getBytes());
+        mvc.perform(multipart("/api/reimbursements/{id}/attachments", draft.getId()).file(file).param("type", "PAYMENT_VOUCHER"))
+                .andExpect(status().isOk());
+        ReimbursementAttachment attachment = attachments.findAll().getFirst();
+
+        mvc.perform(delete("/api/attachments/{id}", attachment.getId()))
+                .andExpect(status().isNoContent());
+
+        assertThat(attachments.findById(attachment.getId())).isEmpty();
+    }
+
+    @Test
+    @WithMockUser(username = "employee", roles = "EMPLOYEE")
+    void employeeCannotDeleteSubmittedAttachment() throws Exception {
+        ReimbursementAttachment attachment = attachments.save(ReimbursementAttachment.create(draft, AttachmentType.PAYMENT_VOUCHER, "pay.png", "1/payment_voucher/pay.png", MediaType.IMAGE_PNG_VALUE, 10));
+        draft.submit(1);
+        records.save(draft);
+
+        mvc.perform(delete("/api/attachments/{id}", attachment.getId()))
+                .andExpect(status().isBadRequest());
+
+        assertThat(attachments.findById(attachment.getId())).isPresent();
+    }
 }
+

@@ -49,6 +49,15 @@ public class LocalFileStorageService implements FileStorageService {
     }
 
     @Override
+    public void delete(String storagePath) {
+        try {
+            Files.deleteIfExists(root.resolve(storagePath).normalize());
+        } catch (IOException ex) {
+            throw new UncheckedIOException(ex);
+        }
+    }
+
+    @Override
     public boolean exists(String storagePath) {
         return Files.exists(root.resolve(storagePath).normalize());
     }
