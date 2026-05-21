@@ -10,6 +10,7 @@ import {
   type ReimbursementRecord
 } from '../api/reimbursements';
 import MaterialCompleteness from './MaterialCompleteness.vue';
+import MaterialList from './MaterialList.vue';
 import StatusTag from './StatusTag.vue';
 
 const props = defineProps<{
@@ -201,17 +202,13 @@ onMounted(async () => {
       </div>
     </form>
 
-    <section class="record-drawer__attachments" aria-label="材料列表">
-      <h3>材料</h3>
-      <span
-        v-for="attachment in props.record.attachments"
-        :key="attachment.id"
-        class="record-drawer__attachment"
-      >
-        {{ attachment.originalFilename }}
-      </span>
-      <p v-if="!props.record.attachments.length">暂无材料</p>
-    </section>
+    <MaterialList
+      :record-id="props.record.id"
+      :status="props.record.status"
+      :attachments="props.record.attachments"
+      @preview="emit('preview', $event)"
+      @changed="emit('saved', props.record)"
+    />
 
     <label class="record-drawer__field">
       <span>管理员备注</span>

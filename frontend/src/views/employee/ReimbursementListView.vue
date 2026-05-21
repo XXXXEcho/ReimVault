@@ -32,6 +32,11 @@ async function load() {
   records.value = response.data;
 }
 
+async function refreshSelected(record: ReimbursementRecord) {
+  await load();
+  selected.value = records.value.find((item) => item.id === record.id) ?? record;
+}
+
 function resetFilters() {
   filters.value = { categoryId: '', status: '', from: '', to: '', keyword: '' };
   void load();
@@ -82,8 +87,8 @@ onMounted(load);
       :record="selected"
       :role="'EMPLOYEE'"
       @close="selected = null"
-      @saved="selected = $event; load()"
-      @submitted="selected = $event; load()"
+      @saved="refreshSelected"
+      @submitted="refreshSelected"
     />
   </section>
 </template>

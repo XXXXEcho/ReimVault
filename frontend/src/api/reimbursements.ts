@@ -66,7 +66,7 @@ export function submitReimbursement(id: number) {
 export function uploadAttachment(recordId: number, type: AttachmentType, file: File) {
   const form = new FormData();
   form.append('file', file);
-  return http.post(`/reimbursements/${recordId}/attachments?type=${type}`, form);
+  return http.post<AttachmentRecord>(`/reimbursements/${recordId}/attachments?type=${type}`, form);
 }
 
 export function deleteAttachment(attachmentId: number) {

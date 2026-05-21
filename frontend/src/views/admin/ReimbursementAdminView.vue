@@ -32,6 +32,11 @@ async function load() {
   records.value = response.data;
 }
 
+async function refreshSelected(record: ReimbursementRecord) {
+  await load();
+  selected.value = records.value.find((item) => item.id === record.id) ?? record;
+}
+
 function hasPaymentVoucher(record: ReimbursementRecord) {
   return (record.attachments ?? []).some((attachment) => attachment.type === 'PAYMENT_VOUCHER');
 }
@@ -81,8 +86,8 @@ onMounted(load);
       :record="selected"
       :role="'ADMIN'"
       @close="selected = null"
-      @saved="selected = $event; load()"
-      @submitted="selected = $event; load()"
+      @saved="refreshSelected"
+      @submitted="refreshSelected"
     />
   </section>
 </template>
