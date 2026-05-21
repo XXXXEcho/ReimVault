@@ -19,7 +19,7 @@ describe('admin authorization UI and routes', () => {
 
     const employeeWrapper = mount(App, { global: { plugins: [pinia], stubs: { RouterLink: { template: '<a><slot /></a>' }, RouterView: true } } });
     expect(employeeWrapper.text()).toContain('我的报销');
-    expect(employeeWrapper.text()).not.toContain('报销管理');
+    expect(employeeWrapper.text()).not.toContain('报销工作台');
     expect(employeeWrapper.text()).not.toContain('批次管理');
 
     const adminPinia = createPinia();
@@ -27,7 +27,7 @@ describe('admin authorization UI and routes', () => {
     useAuthStore().user = { id: 2, username: 'admin', displayName: '管理员', department: '财务部', role: 'ADMIN' };
     const adminWrapper = mount(App, { global: { plugins: [adminPinia], stubs: { RouterLink: { template: '<a><slot /></a>' }, RouterView: true } } });
 
-    expect(adminWrapper.text()).toContain('报销管理');
+    expect(adminWrapper.text()).toContain('报销工作台');
     expect(adminWrapper.text()).toContain('批次管理');
     expect(adminWrapper.text()).toContain('用户管理');
     expect(adminWrapper.text()).toContain('分类管理');
