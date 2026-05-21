@@ -93,24 +93,26 @@ describe('admin views', () => {
       return element;
     });
     vi.mocked(http.get).mockImplementation((url: string) => {
-      if (url === '/admin/batches/5') return Promise.resolve({ data: { id: 5, name: '五月批次', items: [] } });
-      if (url === '/admin/batches/5/export/excel') return Promise.resolve({ data: new Blob(['excel']) });
-      if (url === '/admin/batches/5/export/attachments') return Promise.resolve({ data: new Blob(['zip']) });
+      if (url === '/admin/batches/1') return Promise.resolve({ data: { id: 1, name: '五月批次', items: [] } });
+      if (url === '/admin/batches/1/export/excel') return Promise.resolve({ data: new Blob(['excel']) });
+      if (url === '/admin/batches/1/export/attachments') return Promise.resolve({ data: new Blob(['zip']) });
       return Promise.resolve({ data: [] });
     });
     vi.mocked(http.post).mockResolvedValue({ data: {} });
 
     const wrapper = mount(BatchAdminView, { global: { stubs: ['el-table', 'el-table-column', 'el-form', 'el-form-item', 'el-input', 'el-button'] } });
-    await wrapper.find('[aria-label="批次ID"]').setValue('5');
+    expect(wrapper.text()).toContain('批次列表');
+    expect(wrapper.find('.enterprise-card').exists()).toBe(true);
+    await wrapper.find('[aria-label="批次ID"]').setValue('1');
     await wrapper.find('[data-test="load-batch"]').trigger('click');
     await wrapper.find('[aria-label="报销记录ID"]').setValue('99');
     await wrapper.find('[data-test="add-record"]').trigger('click');
     await wrapper.find('[data-test="export-excel"]').trigger('click');
     await wrapper.find('[data-test="export-attachments"]').trigger('click');
 
-    expect(http.post).toHaveBeenCalledWith('/admin/batches/5/items/99');
-    expect(http.get).toHaveBeenCalledWith('/admin/batches/5/export/excel', { responseType: 'blob' });
-    expect(http.get).toHaveBeenCalledWith('/admin/batches/5/export/attachments', { responseType: 'blob' });
+    expect(http.post).toHaveBeenCalledWith('/admin/batches/1/items/99');
+    expect(http.get).toHaveBeenCalledWith('/admin/batches/1/export/excel', { responseType: 'blob' });
+    expect(http.get).toHaveBeenCalledWith('/admin/batches/1/export/attachments', { responseType: 'blob' });
     expect(createObjectURL).toHaveBeenCalledTimes(2);
     expect(click).toHaveBeenCalledTimes(2);
     expect(revokeObjectURL).toHaveBeenCalledWith('blob:export');
