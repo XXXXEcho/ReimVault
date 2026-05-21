@@ -1,0 +1,6 @@
+.claude/
+backend/target/
+target/
+storage/
+*.log
+.env
