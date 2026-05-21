@@ -97,18 +97,22 @@ onMounted(loadBatches);
 
     <section class="enterprise-card batch-card" aria-labelledby="batch-list-title">
       <h2 id="batch-list-title">批次列表</h2>
-      <table>
-        <thead><tr><th>ID</th><th>名称</th><th>说明</th><th>归档时间</th><th>操作</th></tr></thead>
-        <tbody><tr v-for="batch in batches" :key="batch.id"><td>{{ batch.id }}</td><td>{{ batch.name }}</td><td>{{ batch.description }}</td><td>{{ batch.archivedAt }}</td><td><button @click="loadBatch(batch.id)">查看</button></td></tr></tbody>
-      </table>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>ID</th><th>名称</th><th>说明</th><th>归档时间</th><th>操作</th></tr></thead>
+          <tbody><tr v-for="batch in batches" :key="batch.id"><td>{{ batch.id }}</td><td>{{ batch.name }}</td><td>{{ batch.description }}</td><td>{{ batch.archivedAt }}</td><td><button @click="loadBatch(batch.id)">查看</button></td></tr></tbody>
+        </table>
+      </div>
     </section>
 
     <section class="enterprise-card batch-card" aria-labelledby="batch-detail-title">
       <h2 id="batch-detail-title">批次明细</h2>
-      <table>
-        <thead><tr><th>记录ID</th><th>员工</th><th>分类</th><th>操作</th></tr></thead>
-        <tbody><tr v-for="item in current?.items ?? []" :key="item.id"><td>{{ item.recordId }}</td><td>{{ item.employeeName }}</td><td>{{ item.categoryName }}</td><td><button @click="removeRecord(item.recordId)">移除</button></td></tr></tbody>
-      </table>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>记录ID</th><th>员工</th><th>分类</th><th>操作</th></tr></thead>
+          <tbody><tr v-for="item in current?.items ?? []" :key="item.id"><td>{{ item.recordId }}</td><td>{{ item.employeeName }}</td><td>{{ item.categoryName }}</td><td><button @click="removeRecord(item.recordId)">移除</button></td></tr></tbody>
+        </table>
+      </div>
     </section>
   </section>
 </template>
@@ -157,8 +161,13 @@ button:hover {
   background: var(--color-primary-soft);
 }
 
+.table-scroll {
+  overflow-x: auto;
+}
+
 table {
   width: 100%;
+  min-width: 720px;
   border-collapse: collapse;
 }
 

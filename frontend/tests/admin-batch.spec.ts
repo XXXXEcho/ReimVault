@@ -102,7 +102,8 @@ describe('admin views', () => {
 
     const wrapper = mount(BatchAdminView, { global: { stubs: ['el-table', 'el-table-column', 'el-form', 'el-form-item', 'el-input', 'el-button'] } });
     expect(wrapper.text()).toContain('批次列表');
-    expect(wrapper.find('.enterprise-card').exists()).toBe(true);
+    expect(wrapper.findAll('.enterprise-card.batch-card')).toHaveLength(4);
+    expect(wrapper.findAll('.table-scroll')).toHaveLength(2);
     await wrapper.find('[aria-label="批次ID"]').setValue('1');
     await wrapper.find('[data-test="load-batch"]').trigger('click');
     await wrapper.find('[aria-label="报销记录ID"]').setValue('99');
