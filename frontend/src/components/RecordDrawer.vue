@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, watch } from 'vue';
+import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue';
 import { listCategories, type Category } from '../api/categories';
 import {
   submitReimbursement,
@@ -24,6 +24,7 @@ const emit = defineEmits<{
   preview: [attachmentId: number];
 }>();
 
+const drawer = ref<HTMLElement | null>(null);
 const categories = reactive<{ items: Category[] }>({ items: [] });
 const form = reactive({
   amount: 0,
@@ -32,6 +33,8 @@ const form = reactive({
   paymentTime: '',
   adminRemark: ''
 });
+const loading = reactive({ save: false, submit: false, remark: false });
+const error = ref('');
 
 const isDraftEmployee = computed(() => props.role === 'EMPLOYEE' && props.record.status === 'DRAFT');
 const canEditAdminRemark = computed(() => props.role === 'ADMIN' && props.record.status === 'SUBMITTED');
@@ -43,12 +46,31 @@ function countAttachments(type: AttachmentType) {
   return (props.record.attachments ?? []).filter((attachment) => attachment.type === type).length;
 }
 
+function toDateTimeLocal(value: string) {
+  const date = new Date(value);
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+  return local.toISOString().slice(0, 16);
+}
+
+function apiErrorMessage(err: unknown) {
+  if (typeof err === 'object' && err && 'response' in err) {
+    const response = (err as { response?: { data?: { message?: string } } }).response;
+    if (response?.data?.message) return response.data.message;
+  }
+  return '操作失败，请稍后重试';
+}
+
 function syncForm(record: ReimbursementRecord) {
   form.amount = record.amount;
   form.categoryId = record.categoryId;
   form.purpose = record.purpose;
-  form.paymentTime = record.paymentTime;
+  form.paymentTime = toDateTimeLocal(record.paymentTime);
   form.adminRemark = record.adminRemark ?? '';
+  error.value = '';
+}
+
+function validDraft() {
+  return Number(form.amount) > 0 && Number(form.categoryId) > 0 && form.purpose.trim() !== '' && form.paymentTime !== '';
 }
 
 function draftPayload(): ReimbursementInput {
@@ -56,29 +78,58 @@ function draftPayload(): ReimbursementInput {
     amount: Number(form.amount),
     categoryId: Number(form.categoryId),
     purpose: form.purpose,
-    paymentTime: form.paymentTime
+    paymentTime: new Date(form.paymentTime).toISOString()
   };
 }
 
 async function saveDraft() {
-  const response = await updateReimbursement(props.record.id, draftPayload());
-  emit('saved', response.data);
-  syncForm(response.data);
-  return response.data;
+  if (!validDraft()) {
+    error.value = '请填写金额、用途分类、用途说明和支付时间';
+    return null;
+  }
+  error.value = '';
+  loading.save = true;
+  try {
+    const response = await updateReimbursement(props.record.id, draftPayload());
+    emit('saved', response.data);
+    syncForm(response.data);
+    return response.data;
+  } catch (err) {
+    error.value = apiErrorMessage(err);
+    return null;
+  } finally {
+    loading.save = false;
+  }
 }
 
 async function submitDraft() {
   if (paymentVoucherCount.value === 0) return;
-  const saved = await saveDraft();
-  const response = await submitReimbursement(saved.id);
-  emit('submitted', response.data);
-  syncForm(response.data);
+  loading.submit = true;
+  try {
+    const saved = await saveDraft();
+    if (!saved) return;
+    const response = await submitReimbursement(saved.id);
+    emit('submitted', response.data);
+    syncForm(response.data);
+  } catch (err) {
+    error.value = apiErrorMessage(err);
+  } finally {
+    loading.submit = false;
+  }
 }
 
 async function saveRemark() {
-  const response = await updateAdminRemark(props.record.id, form.adminRemark);
-  emit('saved', response.data);
-  syncForm(response.data);
+  error.value = '';
+  loading.remark = true;
+  try {
+    const response = await updateAdminRemark(props.record.id, form.adminRemark);
+    emit('saved', response.data);
+    syncForm(response.data);
+  } catch (err) {
+    error.value = apiErrorMessage(err);
+  } finally {
+    loading.remark = false;
+  }
 }
 
 function onKeydown(event: KeyboardEvent) {
@@ -88,14 +139,19 @@ function onKeydown(event: KeyboardEvent) {
 watch(() => props.record, syncForm, { immediate: true });
 
 onMounted(async () => {
-  const response = await listCategories();
-  categories.items = response.data;
+  await nextTick();
+  drawer.value?.focus();
+  if (isDraftEmployee.value) {
+    const response = await listCategories();
+    categories.items = response.data;
+  }
 });
 </script>
 
 <template>
-  <aside class="record-drawer" role="dialog" aria-label="记录详情" aria-modal="true" tabindex="-1" @keydown="onKeydown">
+  <aside ref="drawer" class="record-drawer" role="dialog" aria-label="记录详情" aria-modal="true" tabindex="-1" @keydown="onKeydown">
     <button class="record-drawer__close" type="button" aria-label="关闭记录详情" @click="emit('close')">关闭</button>
+    <p v-if="error" class="record-drawer__error" role="alert">{{ error }}</p>
 
     <header class="record-drawer__header">
       <div>
@@ -117,12 +173,17 @@ onMounted(async () => {
         <input v-model.number="form.amount" aria-label="金额" type="number" min="0" step="0.01" :disabled="!isDraftEmployee" />
       </label>
 
-      <label class="record-drawer__field">
-        <span>费用类别</span>
-        <select v-model.number="form.categoryId" aria-label="费用类别" :disabled="!isDraftEmployee">
+      <label v-if="isDraftEmployee" class="record-drawer__field">
+        <span>用途分类</span>
+        <select v-model.number="form.categoryId" aria-label="用途分类" required>
+          <option :value="0">请选择</option>
           <option v-for="category in categories.items" :key="category.id" :value="category.id">{{ category.name }}</option>
         </select>
       </label>
+      <div v-else class="record-drawer__field">
+        <span>用途分类</span>
+        <strong>{{ props.record.categoryName }}</strong>
+      </div>
 
       <label class="record-drawer__field">
         <span>用途说明</span>
@@ -130,27 +191,25 @@ onMounted(async () => {
       </label>
 
       <label class="record-drawer__field">
-        <span>付款时间</span>
-        <input v-model="form.paymentTime" aria-label="付款时间" type="text" :disabled="!isDraftEmployee" />
+        <span>支付时间</span>
+        <input v-model="form.paymentTime" aria-label="支付时间" type="datetime-local" :disabled="!isDraftEmployee" required />
       </label>
 
       <div v-if="isDraftEmployee" class="record-drawer__actions">
-        <button type="button" data-test="save-draft" @click="saveDraft">保存草稿</button>
-        <button type="button" data-test="submit-draft" :disabled="paymentVoucherCount === 0" @click="submitDraft">提交</button>
+        <button type="button" data-test="save-draft" :disabled="loading.save" @click="saveDraft">{{ loading.save ? '保存中...' : '保存草稿' }}</button>
+        <button type="button" data-test="submit-draft" :disabled="loading.submit || paymentVoucherCount === 0" @click="submitDraft">{{ loading.submit ? '提交中...' : '提交' }}</button>
       </div>
     </form>
 
     <section class="record-drawer__attachments" aria-label="材料列表">
       <h3>材料</h3>
-      <button
+      <span
         v-for="attachment in props.record.attachments"
         :key="attachment.id"
-        type="button"
         class="record-drawer__attachment"
-        @click="emit('preview', attachment.id)"
       >
         {{ attachment.originalFilename }}
-      </button>
+      </span>
       <p v-if="!props.record.attachments.length">暂无材料</p>
     </section>
 
@@ -158,7 +217,7 @@ onMounted(async () => {
       <span>管理员备注</span>
       <textarea v-model="form.adminRemark" aria-label="管理员备注" rows="4" :disabled="!canEditAdminRemark" />
     </label>
-    <button v-if="canEditAdminRemark" type="button" data-test="save-remark" @click="saveRemark">保存备注</button>
+    <button v-if="canEditAdminRemark" type="button" data-test="save-remark" :disabled="loading.remark" @click="saveRemark">{{ loading.remark ? '保存中...' : '保存备注' }}</button>
   </aside>
 </template>
 
@@ -190,13 +249,22 @@ onMounted(async () => {
 .record-drawer__header h2,
 .record-drawer__eyebrow,
 .record-drawer__attachments h3,
-.record-drawer__attachments p {
+.record-drawer__attachments p,
+.record-drawer__error {
   margin: 0;
 }
 
 .record-drawer__eyebrow {
   color: var(--color-text-muted);
   font-size: 0.875rem;
+  font-weight: 700;
+}
+
+.record-drawer__error {
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+  background: var(--color-danger-soft);
+  color: var(--color-danger);
   font-weight: 700;
 }
 
@@ -256,6 +324,14 @@ onMounted(async () => {
   background: var(--color-surface);
   color: var(--color-text);
   font-weight: 700;
+}
+
+.record-drawer__attachment {
+  align-items: center;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-surface-muted);
 }
 
 .record-drawer button:not(:disabled) {

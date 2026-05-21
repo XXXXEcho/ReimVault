@@ -11,6 +11,7 @@ vi.mock('../src/api/http', () => ({
 
 const draft: ReimbursementRecord = { id: 1, employeeId: 2, employeeName: '员工一', amount: 123.45, categoryId: 1, categoryName: '差旅费', purpose: '客户拜访', paymentTime: '2026-05-21T02:30:00Z', status: 'DRAFT', adminRemark: null, submittedAt: null, archivedAt: null, attachments: [] };
 const submitted: ReimbursementRecord = { ...draft, id: 2, status: 'SUBMITTED', submittedAt: '2026-05-21T03:00:00Z', attachments: [{ id: 9, type: 'PAYMENT_VOUCHER', originalFilename: 'pay.png', contentType: 'image/png', sizeBytes: 11, createdAt: '2026-05-21T03:00:00Z' }] };
+const draftWithVoucher: ReimbursementRecord = { ...draft, attachments: [{ id: 9, type: 'PAYMENT_VOUCHER', originalFilename: 'pay.png', contentType: 'image/png', sizeBytes: 11, createdAt: '2026-05-21T03:00:00Z' }] };
 
 describe('RecordDrawer', () => {
   beforeEach(() => {
@@ -48,5 +49,45 @@ describe('RecordDrawer', () => {
     await wrapper.find('[data-test="save-remark"]').trigger('click');
 
     expect(http.patch).toHaveBeenCalledWith('/admin/reimbursements/2/remark', { adminRemark: '已核对' });
+  });
+
+  it('shows read-only category name when category options are unavailable', async () => {
+    vi.mocked(http.get).mockResolvedValueOnce({ data: [] });
+    const wrapper = mount(RecordDrawer, { props: { record: submitted, role: 'EMPLOYEE' } });
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('差旅费');
+    expect(wrapper.find('[aria-label="用途分类"]').exists()).toBe(false);
+  });
+
+  it('edits payment time with datetime-local and saves ISO payload', async () => {
+    vi.mocked(http.patch).mockResolvedValue({ data: draftWithVoucher });
+    const wrapper = mount(RecordDrawer, { props: { record: draftWithVoucher, role: 'EMPLOYEE' } });
+    await flushPromises();
+
+    const paymentTime = wrapper.find('[aria-label="支付时间"]');
+    expect(paymentTime.attributes('type')).toBe('datetime-local');
+    await paymentTime.setValue('2026-05-22T09:30');
+    await wrapper.find('[data-test="save-draft"]').trigger('click');
+
+    expect(http.patch).toHaveBeenCalledWith('/reimbursements/1', expect.objectContaining({ paymentTime: '2026-05-22T01:30:00.000Z' }));
+  });
+
+  it('validates draft fields before saving', async () => {
+    const wrapper = mount(RecordDrawer, { props: { record: { ...draft, amount: 0 }, role: 'EMPLOYEE' } });
+    await flushPromises();
+
+    await wrapper.find('[data-test="save-draft"]').trigger('click');
+
+    expect(http.patch).not.toHaveBeenCalled();
+    expect(wrapper.text()).toContain('请填写金额、用途分类、用途说明和支付时间');
+  });
+
+  it('renders attachments as static material summary until previewer integration', async () => {
+    const wrapper = mount(RecordDrawer, { props: { record: submitted, role: 'EMPLOYEE' } });
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('pay.png');
+    expect(wrapper.find('.record-drawer__attachment').element.tagName).toBe('SPAN');
   });
 });
