@@ -1,6 +1,7 @@
 import http from './http';
 
 export type ReimbursementStatus = 'DRAFT' | 'SUBMITTED' | 'ARCHIVED';
+export type AttachmentType = 'PAYMENT_VOUCHER' | 'ORDER_SCREENSHOT' | 'INVOICE';
 
 export interface ReimbursementInput {
   amount: number;
@@ -9,19 +10,41 @@ export interface ReimbursementInput {
   paymentTime: string;
 }
 
+export interface AttachmentRecord {
+  id: number;
+  type: AttachmentType;
+  originalFilename: string;
+  contentType: string;
+  sizeBytes: number;
+  createdAt: string;
+}
+
 export interface ReimbursementRecord extends ReimbursementInput {
   id: number;
   employeeId: number;
   employeeName: string;
   categoryName: string;
   status: ReimbursementStatus;
-  adminRemark: string;
+  adminRemark: string | null;
   submittedAt: string | null;
   archivedAt: string | null;
+  attachments: AttachmentRecord[];
 }
 
-export function listReimbursements() {
-  return http.get<ReimbursementRecord[]>('/reimbursements');
+export interface EmployeeReimbursementFilters {
+  categoryId?: number;
+  status?: ReimbursementStatus;
+  from?: string;
+  to?: string;
+  keyword?: string;
+}
+
+export interface AdminReimbursementFilters extends EmployeeReimbursementFilters {
+  employeeId?: number;
+}
+
+export function listReimbursements(params: EmployeeReimbursementFilters = {}) {
+  return http.get<ReimbursementRecord[]>('/reimbursements', { params });
 }
 
 export function createReimbursement(payload: ReimbursementInput) {
@@ -40,8 +63,6 @@ export function submitReimbursement(id: number) {
   return http.post<ReimbursementRecord>(`/reimbursements/${id}/submit`);
 }
 
-export type AttachmentType = 'PAYMENT_VOUCHER' | 'ORDER_SCREENSHOT' | 'INVOICE';
-
 export function uploadAttachment(recordId: number, type: AttachmentType, file: File) {
   const form = new FormData();
   form.append('file', file);
@@ -50,14 +71,6 @@ export function uploadAttachment(recordId: number, type: AttachmentType, file: F
 
 export function deleteAttachment(attachmentId: number) {
   return http.delete(`/attachments/${attachmentId}`);
-}
-
-export interface AdminReimbursementFilters {
-  employeeId?: number;
-  categoryId?: number;
-  status?: ReimbursementStatus;
-  from?: string;
-  to?: string;
 }
 
 export function listAdminReimbursements(params: AdminReimbursementFilters = { status: 'SUBMITTED' }) {
