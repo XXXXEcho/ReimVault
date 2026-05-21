@@ -33,6 +33,12 @@ public class SecurityConfig {
     }
 
     @Bean
+    org.springframework.security.core.userdetails.UserDetailsService userDetailsService(com.company.reimbursement.user.UserRepository users) {
+        return username -> users.findByUsername(username)
+                .orElseThrow(() -> new org.springframework.security.core.userdetails.UsernameNotFoundException(username));
+    }
+
+    @Bean
     PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
