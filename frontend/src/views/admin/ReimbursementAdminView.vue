@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import EmptyState from '../../components/EmptyState.vue';
+import MetricCard from '../../components/MetricCard.vue';
 import WorkbenchFilters from '../../components/WorkbenchFilters.vue';
 import WorkbenchRecordTable from '../../components/WorkbenchRecordTable.vue';
 import {
@@ -32,6 +33,17 @@ async function load() {
   records.value = response.data;
 }
 
+function hasPaymentVoucher(record: ReimbursementRecord) {
+  return (record.attachments ?? []).some((attachment) => attachment.type === 'PAYMENT_VOUCHER');
+}
+
+const metrics = computed(() => ({
+  draft: records.value.filter((record) => record.status === 'DRAFT').length,
+  submitted: records.value.filter((record) => record.status === 'SUBMITTED').length,
+  archived: records.value.filter((record) => record.status === 'ARCHIVED').length,
+  incomplete: records.value.filter((record) => !hasPaymentVoucher(record)).length
+}));
+
 function resetFilters() {
   filters.value = { employeeId: '', categoryId: '', status: 'SUBMITTED', from: '', to: '', keyword: '' };
   void load();
@@ -58,6 +70,13 @@ onMounted(load);
         <h1>报销管理</h1>
       </div>
     </header>
+
+    <div class="metrics-grid">
+      <MetricCard title="草稿" :value="metrics.draft" />
+      <MetricCard title="已提交" :value="metrics.submitted" tone="success" />
+      <MetricCard title="已归档" :value="metrics.archived" />
+      <MetricCard title="材料不完整" :value="metrics.incomplete" tone="danger" />
+    </div>
 
     <WorkbenchFilters v-model="filters" admin @apply="load" @reset="resetFilters" />
 
@@ -93,6 +112,12 @@ onMounted(load);
   font-size: 0.875rem;
   font-weight: 700;
   text-transform: uppercase;
+}
+
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: var(--space-4);
 }
 
 .record-drawer {

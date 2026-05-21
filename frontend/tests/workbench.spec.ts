@@ -32,9 +32,15 @@ describe('workbench pages', () => {
     expect(wrapper.text()).toContain('客户拜访');
   });
 
-  it('passes admin filters and opens drawer by row click', async () => {
+  it('renders admin metrics, passes filters, and opens drawer by row click', async () => {
     const wrapper = mount(AdminWorkbench);
     await flushPromises();
+
+    expect(wrapper.text()).toContain('草稿');
+    expect(wrapper.text()).toContain('已提交');
+    expect(wrapper.text()).toContain('已归档');
+    expect(wrapper.text()).toContain('材料不完整');
+
     await wrapper.find('[aria-label="员工ID"]').setValue('2');
     await wrapper.find('[aria-label="状态"]').setValue('SUBMITTED');
     await wrapper.find('[data-test="apply-filters"]').trigger('click');
