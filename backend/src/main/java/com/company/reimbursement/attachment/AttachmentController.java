@@ -1,5 +1,6 @@
 package com.company.reimbursement.attachment;
 
+import com.company.reimbursement.reimbursement.ReimbursementDtos;
 import com.company.reimbursement.reimbursement.ReimbursementRecord;
 import com.company.reimbursement.reimbursement.ReimbursementRepository;
 import com.company.reimbursement.reimbursement.ReimbursementStatus;
@@ -39,7 +40,7 @@ public class AttachmentController {
 
     @PostMapping("/api/reimbursements/{id}/attachments")
     @Transactional
-    AttachmentResponse upload(@PathVariable Long id, @RequestParam AttachmentType type, @RequestParam MultipartFile file, Authentication authentication) {
+    ReimbursementDtos.AttachmentResponse upload(@PathVariable Long id, @RequestParam AttachmentType type, @RequestParam MultipartFile file, Authentication authentication) {
         User user = findUser(authentication.getName());
         ReimbursementRecord record = records.findById(id).orElseThrow(() -> new EntityNotFoundException("报销记录不存在"));
         ensureOwner(record, user);
@@ -50,7 +51,7 @@ public class AttachmentController {
         ReimbursementAttachment attachment = attachments.save(ReimbursementAttachment.create(
                 record, type, stored.originalFilename(), stored.storagePath(), stored.contentType(), stored.sizeBytes()
         ));
-        return AttachmentResponse.from(attachment);
+        return ReimbursementDtos.AttachmentResponse.from(attachment);
     }
 
     @GetMapping("/api/attachments/{id}")
@@ -91,9 +92,4 @@ public class AttachmentController {
         }
     }
 
-    record AttachmentResponse(Long id, AttachmentType type, String originalFilename, String contentType, long sizeBytes) {
-        static AttachmentResponse from(ReimbursementAttachment attachment) {
-            return new AttachmentResponse(attachment.getId(), attachment.getType(), attachment.getOriginalFilename(), attachment.getContentType(), attachment.getSizeBytes());
-        }
-    }
 }

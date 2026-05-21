@@ -34,25 +34,25 @@ public class ReimbursementService {
         User employee = findUser(username);
         ExpenseCategory category = findCategory(request.categoryId());
         ReimbursementRecord record = ReimbursementRecord.createDraft(employee, request.amount(), category, request.purpose(), request.paymentTime());
-        return ReimbursementDtos.RecordResponse.from(records.save(record));
+        return response(records.save(record));
     }
 
     @Transactional
     public ReimbursementDtos.RecordResponse updateDraft(String username, Long id, ReimbursementDtos.SaveRecordRequest request) {
         ReimbursementRecord record = getOwnedRecord(username, id);
         record.updateDraft(request.amount(), findCategory(request.categoryId()), request.purpose(), request.paymentTime());
-        return ReimbursementDtos.RecordResponse.from(record);
+        return response(record);
     }
 
     @Transactional(readOnly = true)
     public ReimbursementDtos.RecordResponse getMine(String username, Long id) {
-        return ReimbursementDtos.RecordResponse.from(getOwnedRecord(username, id));
+        return response(getOwnedRecord(username, id));
     }
 
     @Transactional(readOnly = true)
     public List<ReimbursementDtos.RecordResponse> listMine(String username) {
         return records.findByEmployeeOrderByCreatedAtDesc(findUser(username)).stream()
-                .map(ReimbursementDtos.RecordResponse::from)
+                .map(this::response)
                 .toList();
     }
 
@@ -60,14 +60,18 @@ public class ReimbursementService {
     public ReimbursementDtos.RecordResponse submit(String username, Long id) {
         ReimbursementRecord record = getOwnedRecord(username, id);
         record.submit(attachments.countByRecordAndType(record, AttachmentType.PAYMENT_VOUCHER));
-        return ReimbursementDtos.RecordResponse.from(record);
+        return response(record);
     }
 
     @Transactional(readOnly = true)
     public List<ReimbursementDtos.RecordResponse> listAll(ReimbursementDtos.AdminListFilter filter) {
         return records.findAll(adminFilter(filter)).stream()
-                .map(ReimbursementDtos.RecordResponse::from)
+                .map(this::response)
                 .toList();
+    }
+
+    private ReimbursementDtos.RecordResponse response(ReimbursementRecord record) {
+        return ReimbursementDtos.RecordResponse.from(record, attachments.findByRecord(record));
     }
 
     private Specification<ReimbursementRecord> adminFilter(ReimbursementDtos.AdminListFilter filter) {
@@ -86,7 +90,7 @@ public class ReimbursementService {
     public ReimbursementDtos.RecordResponse updateAdminRemark(Long id, ReimbursementDtos.AdminRemarkRequest request) {
         ReimbursementRecord record = records.findById(id).orElseThrow(() -> new EntityNotFoundException("报销记录不存在"));
         record.setAdminRemark(request.adminRemark());
-        return ReimbursementDtos.RecordResponse.from(record);
+        return response(record);
     }
 
     private ReimbursementRecord getOwnedRecord(String username, Long id) {
