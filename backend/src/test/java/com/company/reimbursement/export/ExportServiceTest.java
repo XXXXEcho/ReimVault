@@ -7,6 +7,8 @@ import com.company.reimbursement.attachment.ReimbursementAttachment;
 import com.company.reimbursement.attachment.ReimbursementAttachmentRepository;
 import com.company.reimbursement.batch.BatchDtos;
 import com.company.reimbursement.batch.BatchService;
+import com.company.reimbursement.batch.ReimbursementBatchItemRepository;
+import com.company.reimbursement.batch.ReimbursementBatchRepository;
 import com.company.reimbursement.category.ExpenseCategory;
 import com.company.reimbursement.category.ExpenseCategoryRepository;
 import com.company.reimbursement.reimbursement.ReimbursementRecord;
@@ -16,8 +18,11 @@ import com.company.reimbursement.user.UserRepository;
 import com.company.reimbursement.user.UserRole;
 import java.io.ByteArrayInputStream;
 import java.math.BigDecimal;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Instant;
 import java.util.List;
+import java.util.zip.ZipInputStream;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.usermodel.WorkbookFactory;
@@ -36,7 +41,10 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 })
 class ExportServiceTest {
     @Autowired ExcelExportService excelExportService;
+    @Autowired ZipExportService zipExportService;
     @Autowired BatchService batchService;
+    @Autowired ReimbursementBatchItemRepository batchItems;
+    @Autowired ReimbursementBatchRepository batches;
     @Autowired ReimbursementAttachmentRepository attachments;
     @Autowired ReimbursementRepository records;
     @Autowired ExpenseCategoryRepository categories;
@@ -47,6 +55,8 @@ class ExportServiceTest {
 
     @BeforeEach
     void setUp() {
+        batchItems.deleteAll();
+        batches.deleteAll();
         attachments.deleteAll();
         records.deleteAll();
         categories.deleteAll();
@@ -63,6 +73,32 @@ class ExportServiceTest {
         BatchDtos.BatchResponse batch = batchService.create(admin.getUsername(), new BatchDtos.CreateBatchRequest("2026-05报销", "五月报销"));
         batchService.addItem(batch.id(), record.getId());
         batchId = batch.id();
+    }
+
+    @Test
+    void exportsBatchAttachmentZipWithExpectedEntriesAndMissingList() throws Exception {
+        Files.createDirectories(Path.of("target/test-storage/exports/real/payment_voucher"));
+        Files.writeString(Path.of("target/test-storage/exports/real/payment_voucher/pay.png"), "pay-content");
+        ReimbursementAttachment attachment = attachments.findAll().stream()
+                .filter(item -> item.getType() == AttachmentType.PAYMENT_VOUCHER)
+                .findFirst()
+                .orElseThrow();
+        attachments.delete(attachment);
+        attachments.save(ReimbursementAttachment.create(attachment.getRecord(), AttachmentType.PAYMENT_VOUCHER, "pay.png", "real/payment_voucher/pay.png", "image/png", 11));
+
+        byte[] bytes = zipExportService.exportBatchAttachments(batchId);
+
+        try (ZipInputStream zip = new ZipInputStream(new ByteArrayInputStream(bytes))) {
+            List<String> names = new java.util.ArrayList<>();
+            java.util.zip.ZipEntry entry;
+            while ((entry = zip.getNextEntry()) != null) {
+                names.add(entry.getName());
+            }
+            assertThat(names).contains(
+                    "报销批次-2026-05报销/员工一/001-办公用品-128.00/支付凭证/pay.png",
+                    "报销批次-2026-05报销/附件缺失清单.txt"
+            );
+        }
     }
 
     @Test

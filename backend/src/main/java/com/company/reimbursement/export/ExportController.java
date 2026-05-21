@@ -14,9 +14,11 @@ import org.springframework.web.bind.annotation.RestController;
 @PreAuthorize("hasRole('ADMIN')")
 public class ExportController {
     private final ExcelExportService excelExportService;
+    private final ZipExportService zipExportService;
 
-    public ExportController(ExcelExportService excelExportService) {
+    public ExportController(ExcelExportService excelExportService, ZipExportService zipExportService) {
         this.excelExportService = excelExportService;
+        this.zipExportService = zipExportService;
     }
 
     @GetMapping("/{id}/export/excel")
@@ -25,5 +27,13 @@ public class ExportController {
                 .contentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"batch-" + id + ".xlsx\"")
                 .body(excelExportService.exportBatch(id));
+    }
+
+    @GetMapping("/{id}/export/attachments")
+    ResponseEntity<byte[]> exportAttachments(@PathVariable Long id) {
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType("application/zip"))
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"batch-" + id + "-attachments.zip\"")
+                .body(zipExportService.exportBatchAttachments(id));
     }
 }
