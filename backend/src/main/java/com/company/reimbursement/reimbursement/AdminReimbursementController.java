@@ -28,9 +28,10 @@ public class AdminReimbursementController {
             @RequestParam(required = false) Long categoryId,
             @RequestParam(required = false) ReimbursementStatus status,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+            @RequestParam(required = false) String keyword
     ) {
-        return service.listAll(new ReimbursementDtos.AdminListFilter(employeeId, categoryId, status, from, to));
+        return service.listAll(new ReimbursementDtos.AdminListFilter(employeeId, categoryId, status, from, to, keyword));
     }
 
     @PatchMapping("/{id}/remark")

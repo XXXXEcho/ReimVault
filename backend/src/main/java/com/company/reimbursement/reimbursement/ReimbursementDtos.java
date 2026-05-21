@@ -14,7 +14,10 @@ public class ReimbursementDtos {
     public record AdminRemarkRequest(String adminRemark) {
     }
 
-    public record AdminListFilter(Long employeeId, Long categoryId, ReimbursementStatus status, LocalDate from, LocalDate to) {
+    public record EmployeeListFilter(Long categoryId, ReimbursementStatus status, LocalDate from, LocalDate to, String keyword) {
+    }
+
+    public record AdminListFilter(Long employeeId, Long categoryId, ReimbursementStatus status, LocalDate from, LocalDate to, String keyword) {
     }
 
     public record AttachmentResponse(Long id, AttachmentType type, String originalFilename, String contentType, long sizeBytes, Instant createdAt) {

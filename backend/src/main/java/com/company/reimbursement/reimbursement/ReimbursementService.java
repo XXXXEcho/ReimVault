@@ -7,6 +7,8 @@ import com.company.reimbursement.category.ExpenseCategoryRepository;
 import com.company.reimbursement.user.User;
 import com.company.reimbursement.user.UserRepository;
 import jakarta.persistence.EntityNotFoundException;
+import jakarta.persistence.criteria.CriteriaBuilder;
+import jakarta.persistence.criteria.Expression;
 import jakarta.persistence.criteria.Predicate;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
@@ -51,7 +53,12 @@ public class ReimbursementService {
 
     @Transactional(readOnly = true)
     public List<ReimbursementDtos.RecordResponse> listMine(String username) {
-        return records.findByEmployeeOrderByCreatedAtDesc(findUser(username)).stream()
+        return listMine(username, new ReimbursementDtos.EmployeeListFilter(null, null, null, null, null));
+    }
+
+    @Transactional(readOnly = true)
+    public List<ReimbursementDtos.RecordResponse> listMine(String username, ReimbursementDtos.EmployeeListFilter filter) {
+        return records.findAll(employeeFilter(findUser(username), filter)).stream()
                 .map(this::response)
                 .toList();
     }
@@ -74,6 +81,20 @@ public class ReimbursementService {
         return ReimbursementDtos.RecordResponse.from(record, attachments.findByRecord(record));
     }
 
+    private Specification<ReimbursementRecord> employeeFilter(User employee, ReimbursementDtos.EmployeeListFilter filter) {
+        return (root, query, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
+            predicates.add(cb.equal(root.get("employee"), employee));
+            if (filter.categoryId() != null) predicates.add(cb.equal(root.get("category").get("id"), filter.categoryId()));
+            if (filter.status() != null) predicates.add(cb.equal(root.get("status"), filter.status()));
+            if (filter.from() != null) predicates.add(cb.greaterThanOrEqualTo(root.get("paymentTime"), filter.from().atStartOfDay().toInstant(ZoneOffset.UTC)));
+            if (filter.to() != null) predicates.add(cb.lessThan(root.get("paymentTime"), filter.to().plusDays(1).atStartOfDay().toInstant(ZoneOffset.UTC)));
+            addKeywordPredicate(filter.keyword(), root.get("purpose"), predicates, cb);
+            query.orderBy(cb.desc(root.get("createdAt")));
+            return cb.and(predicates.toArray(Predicate[]::new));
+        };
+    }
+
     private Specification<ReimbursementRecord> adminFilter(ReimbursementDtos.AdminListFilter filter) {
         return (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
@@ -82,8 +103,16 @@ public class ReimbursementService {
             if (filter.status() != null) predicates.add(cb.equal(root.get("status"), filter.status()));
             if (filter.from() != null) predicates.add(cb.greaterThanOrEqualTo(root.get("paymentTime"), filter.from().atStartOfDay().toInstant(ZoneOffset.UTC)));
             if (filter.to() != null) predicates.add(cb.lessThan(root.get("paymentTime"), filter.to().plusDays(1).atStartOfDay().toInstant(ZoneOffset.UTC)));
+            addKeywordPredicate(filter.keyword(), root.get("purpose"), predicates, cb);
+            query.orderBy(cb.desc(root.get("createdAt")));
             return cb.and(predicates.toArray(Predicate[]::new));
         };
+    }
+
+    private void addKeywordPredicate(String keyword, Expression<String> field, List<Predicate> predicates, CriteriaBuilder cb) {
+        if (keyword != null && !keyword.isBlank()) {
+            predicates.add(cb.like(cb.lower(field), "%" + keyword.trim().toLowerCase() + "%"));
+        }
     }
 
     @Transactional

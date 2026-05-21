@@ -61,6 +61,10 @@ class AdminReimbursementControllerTest {
         wrongEmployee.submit(1);
         records.save(wrongEmployee);
 
+        ReimbursementRecord wrongKeyword = ReimbursementRecord.createDraft(employee, new BigDecimal("133.00"), travel, "内部培训", Instant.parse("2026-05-10T10:00:00Z"));
+        wrongKeyword.submit(1);
+        records.save(wrongKeyword);
+
         ReimbursementRecord wrongCategory = ReimbursementRecord.createDraft(employee, new BigDecimal("130.00"), office, "办公用品", Instant.parse("2026-05-10T10:00:00Z"));
         wrongCategory.submit(1);
         records.save(wrongCategory);
@@ -77,7 +81,8 @@ class AdminReimbursementControllerTest {
                         .param("categoryId", travel.getId().toString())
                         .param("status", "SUBMITTED")
                         .param("from", "2026-05-01")
-                        .param("to", "2026-05-31"))
+                        .param("to", "2026-05-31")
+                        .param("keyword", "客户"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id").value(matching.getId()))
                 .andExpect(jsonPath("$[0].purpose").value("客户拜访"))
