@@ -245,8 +245,6 @@ onMounted(async () => {
 
 .record-drawer__header h2,
 .record-drawer__eyebrow,
-.record-drawer__attachments h3,
-.record-drawer__attachments p,
 .record-drawer__error {
   margin: 0;
 }
@@ -266,8 +264,7 @@ onMounted(async () => {
 }
 
 .record-drawer__form,
-.record-drawer__field,
-.record-drawer__attachments {
+.record-drawer__field {
   display: grid;
   gap: var(--space-3);
 }

@@ -90,4 +90,13 @@ describe('RecordDrawer', () => {
     expect(wrapper.text()).toContain('pay.png');
     expect(wrapper.find('.record-drawer__attachment').element.tagName).toBe('SPAN');
   });
+
+  it('re-emits MaterialList preview requests with the attachment id', async () => {
+    const wrapper = mount(RecordDrawer, { props: { record: submitted, role: 'EMPLOYEE' } });
+    await flushPromises();
+
+    await wrapper.find('[data-test="preview-9"]').trigger('click');
+
+    expect(wrapper.emitted('preview')?.[0]).toEqual([9]);
+  });
 });

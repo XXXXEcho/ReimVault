@@ -32,6 +32,22 @@ describe('workbench pages', () => {
     expect(wrapper.text()).toContain('客户拜访');
   });
 
+  it('reloads employee records and keeps selected record synced after drawer saved event', async () => {
+    const refreshedRecords = records.map((record) => (record.id === 2 ? { ...record, purpose: '晚餐', attachments: [] } : record));
+    vi.mocked(http.get).mockResolvedValueOnce({ data: records }).mockResolvedValueOnce({ data: refreshedRecords });
+    const wrapper = mount(EmployeeWorkbench, { global: { stubs: ['RouterLink'] } });
+    await flushPromises();
+    await wrapper.find('[data-test="record-row-2"]').trigger('click');
+    expect(wrapper.text()).toContain('午餐');
+
+    wrapper.findComponent({ name: 'RecordDrawer' }).vm.$emit('saved', records[1]);
+    await flushPromises();
+
+    expect(http.get).toHaveBeenCalledTimes(2);
+    expect(wrapper.text()).toContain('晚餐');
+    expect(wrapper.text()).not.toContain('午餐');
+  });
+
   it('renders admin metrics, passes filters, and opens drawer by row click', async () => {
     const wrapper = mount(AdminWorkbench);
     await flushPromises();
