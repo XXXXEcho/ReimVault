@@ -19,7 +19,7 @@ async function submit() {
     <form @submit.prevent="submit">
       <label>用户名<input aria-label="用户名" v-model="form.username" autocomplete="username" /></label>
       <label>密码<input aria-label="密码" v-model="form.password" type="password" autocomplete="current-password" /></label>
-      <button type="submit">登录</button>
+      <button class="primary-action" type="submit">登录</button>
     </form>
   </div>
 </template>
@@ -30,4 +30,5 @@ form { display: grid; gap: 16px; }
 label { display: grid; gap: 6px; }
 input { padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
 button { padding: 10px; }
+.primary-action { min-height: 40px; border: 0; border-radius: 10px; background: #2563eb; color: #fff; cursor: pointer; font-weight: 700; }
 </style>
