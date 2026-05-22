@@ -9,6 +9,15 @@ export interface ReimbursementInput {
   paymentTime: string;
 }
 
+export interface ReimbursementAttachment {
+  id: number;
+  type: AttachmentType;
+  originalFilename: string;
+  contentType: string;
+  sizeBytes: number;
+  createdAt: string;
+}
+
 export interface ReimbursementRecord extends ReimbursementInput {
   id: number;
   employeeId: number;
@@ -18,6 +27,7 @@ export interface ReimbursementRecord extends ReimbursementInput {
   adminRemark: string;
   submittedAt: string | null;
   archivedAt: string | null;
+  attachments?: ReimbursementAttachment[];
 }
 
 export function listReimbursements() {

@@ -19,7 +19,8 @@ function edit(user: UserRecord) {
 
 async function save() {
   if (editingId.value) {
-    await updateUser(editingId.value, { displayName: form.displayName, department: form.department, role: form.role, enabled: form.enabled });
+    const payload = { displayName: form.displayName, department: form.department, role: form.role, enabled: form.enabled, ...(form.password.trim() ? { password: form.password } : {}) };
+    await updateUser(editingId.value, payload);
   } else {
     await createUser({ username: form.username, displayName: form.displayName, department: form.department, password: form.password, role: form.role });
   }

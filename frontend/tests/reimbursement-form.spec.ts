@@ -17,6 +17,8 @@ vi.mock('../src/api/http', () => ({
 describe('reimbursement form', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    Object.defineProperty(URL, 'createObjectURL', { value: vi.fn((file: File) => `blob:${file.name}`), configurable: true });
+    Object.defineProperty(URL, 'revokeObjectURL', { value: vi.fn(), configurable: true });
     vi.mocked(http.get).mockResolvedValue({ data: [{ id: 7, name: '差旅', enabled: true, sortOrder: 1, remark: '' }] });
   });
 
@@ -45,6 +47,23 @@ describe('reimbursement form', () => {
 
     expect(http.post).not.toHaveBeenCalledWith('/reimbursements', expect.anything());
     expect(wrapper.text()).toContain('请填写金额、用途分类、用途说明和支付时间');
+  });
+
+  it('previews selected image files before saving', async () => {
+    const wrapper = mount(ReimbursementForm, {
+      global: { stubs: ['el-form', 'el-form-item', 'el-input', 'el-input-number', 'el-select', 'el-option', 'el-date-picker', 'el-button', 'el-upload'] }
+    });
+    await Promise.resolve();
+
+    const paymentFile = new File(['payment'], 'payment.png', { type: 'image/png' });
+    const input = wrapper.find('[data-test="payment-voucher-files"]').element as HTMLInputElement;
+    Object.defineProperty(input, 'files', { value: [paymentFile], configurable: true });
+    await wrapper.find('[data-test="payment-voucher-files"]').trigger('change');
+    await flushPromises();
+
+    const preview = wrapper.find('img[alt="payment.png"]');
+    expect(preview.exists()).toBe(true);
+    expect(preview.attributes('src')).toBe('blob:payment.png');
   });
 
   it('requires a selected payment voucher before submitting a new reimbursement', async () => {
@@ -127,6 +146,103 @@ describe('reimbursement form', () => {
     expect(http.post).toHaveBeenCalledWith('/reimbursements/9/submit');
   });
 
+  it('previews uploaded image attachments immediately when editing an existing draft', async () => {
+    vi.mocked(http.get).mockImplementation((url: string) => {
+      if (url === '/categories') return Promise.resolve({ data: [{ id: 7, name: '差旅', enabled: true, sortOrder: 1, remark: '' }] });
+      if (url === '/reimbursements/9') {
+        return Promise.resolve({ data: { id: 9, amount: 88, categoryId: 7, purpose: '旧用途', paymentTime: '2026-05-21T10:00:00', status: 'DRAFT', attachments: [] } });
+      }
+      return Promise.resolve({ data: [] });
+    });
+    vi.mocked(http.post).mockResolvedValue({ data: { id: 31, type: 'PAYMENT_VOUCHER', originalFilename: 'uploaded.png', contentType: 'image/png', sizeBytes: 1024, createdAt: '2026-05-21T10:00:00Z' } });
+
+    const wrapper = mount(ReimbursementForm, {
+      props: { id: 9 },
+      global: { stubs: ['el-form', 'el-form-item', 'el-input', 'el-input-number', 'el-select', 'el-option', 'el-date-picker', 'el-button', 'el-upload'] }
+    });
+    await flushPromises();
+
+    const paymentFile = new File(['payment'], 'uploaded.png', { type: 'image/png' });
+    const input = wrapper.find('[data-test="payment-voucher-files"]').element as HTMLInputElement;
+    Object.defineProperty(input, 'files', { value: [paymentFile], configurable: true });
+    await wrapper.find('[data-test="payment-voucher-files"]').trigger('change');
+    await flushPromises();
+
+    const preview = wrapper.find('img[alt="uploaded.png"]');
+    expect(preview.exists()).toBe(true);
+    expect(preview.attributes('src')).toBe('/api/attachments/31');
+  });
+
+  it('opens and closes a large image preview from an attachment thumbnail', async () => {
+    vi.mocked(http.get).mockImplementation((url: string) => {
+      if (url === '/categories') return Promise.resolve({ data: [{ id: 7, name: '差旅', enabled: true, sortOrder: 1, remark: '' }] });
+      if (url === '/reimbursements/9') {
+        return Promise.resolve({ data: {
+          id: 9,
+          amount: 88,
+          categoryId: 7,
+          purpose: '旧用途',
+          paymentTime: '2026-05-21T10:00:00',
+          status: 'DRAFT',
+          attachments: [
+            { id: 11, type: 'PAYMENT_VOUCHER', originalFilename: '支付截图.png', contentType: 'image/png', sizeBytes: 1024, createdAt: '2026-05-21T10:00:00Z' }
+          ]
+        } });
+      }
+      return Promise.resolve({ data: [] });
+    });
+
+    const wrapper = mount(ReimbursementForm, {
+      props: { id: 9 },
+      global: { stubs: ['el-form', 'el-form-item', 'el-input', 'el-input-number', 'el-select', 'el-option', 'el-date-picker', 'el-button', 'el-upload'] }
+    });
+    await flushPromises();
+
+    await wrapper.find('img[alt="支付截图.png"]').trigger('click');
+
+    const dialog = wrapper.find('[role="dialog"]');
+    expect(dialog.exists()).toBe(true);
+    expect(dialog.find('img[alt="支付截图.png"]').attributes('src')).toBe('/api/attachments/11');
+
+    await dialog.find('[aria-label="关闭大图预览"]').trigger('click');
+
+    expect(wrapper.find('[role="dialog"]').exists()).toBe(false);
+  });
+
+  it('previews existing image attachments and links non-image attachments', async () => {
+    vi.mocked(http.get).mockImplementation((url: string) => {
+      if (url === '/categories') return Promise.resolve({ data: [{ id: 7, name: '差旅', enabled: true, sortOrder: 1, remark: '' }] });
+      if (url === '/reimbursements/9') {
+        return Promise.resolve({ data: {
+          id: 9,
+          amount: 88,
+          categoryId: 7,
+          purpose: '旧用途',
+          paymentTime: '2026-05-21T10:00:00',
+          status: 'DRAFT',
+          attachments: [
+            { id: 11, type: 'PAYMENT_VOUCHER', originalFilename: '支付截图.png', contentType: 'image/png', sizeBytes: 1024, createdAt: '2026-05-21T10:00:00Z' },
+            { id: 12, type: 'INVOICE', originalFilename: '发票.pdf', contentType: 'application/pdf', sizeBytes: 2048, createdAt: '2026-05-21T10:00:00Z' }
+          ]
+        } });
+      }
+      return Promise.resolve({ data: [] });
+    });
+
+    const wrapper = mount(ReimbursementForm, {
+      props: { id: 9 },
+      global: { stubs: ['el-form', 'el-form-item', 'el-input', 'el-input-number', 'el-select', 'el-option', 'el-date-picker', 'el-button', 'el-upload'] }
+    });
+    await flushPromises();
+
+    const preview = wrapper.find('img[alt="支付截图.png"]');
+    expect(preview.exists()).toBe(true);
+    expect(preview.attributes('src')).toBe('/api/attachments/11');
+
+    const link = wrapper.find('a[href="/api/attachments/12"]');
+    expect(link.text()).toContain('发票.pdf');
+  });
+
   it('shows backend submit errors for an existing draft without requiring a new payment voucher selection', async () => {
     vi.mocked(http.get).mockImplementation((url: string) => {
       if (url === '/categories') return Promise.resolve({ data: [{ id: 7, name: '差旅', enabled: true, sortOrder: 1, remark: '' }] });
@@ -151,6 +267,32 @@ describe('reimbursement form', () => {
     expect(http.patch).toHaveBeenCalledWith('/reimbursements/9', expect.anything());
     expect(http.post).toHaveBeenCalledWith('/reimbursements/9/submit');
     expect(wrapper.text()).toContain('至少上传一张支付凭证');
+  });
+
+  it('previews attachments immediately after uploading selected files', async () => {
+    vi.mocked(http.post)
+      .mockResolvedValueOnce({ data: { id: 42, amount: 88, categoryId: 7, purpose: '客户拜访', paymentTime: '2026-05-21T10:00:00', status: 'DRAFT' } })
+      .mockResolvedValueOnce({ data: { id: 21, type: 'PAYMENT_VOUCHER', originalFilename: 'payment.png', contentType: 'image/png', sizeBytes: 1024, createdAt: '2026-05-21T10:00:00Z' } });
+
+    const wrapper = mount(ReimbursementForm, {
+      global: { stubs: ['el-form', 'el-form-item', 'el-input', 'el-input-number', 'el-select', 'el-option', 'el-date-picker', 'el-button', 'el-upload'] }
+    });
+    await Promise.resolve();
+
+    const paymentFile = new File(['payment'], 'payment.png', { type: 'image/png' });
+    const input = wrapper.find('[data-test="payment-voucher-files"]').element as HTMLInputElement;
+    Object.defineProperty(input, 'files', { value: [paymentFile], configurable: true });
+    await wrapper.find('[data-test="payment-voucher-files"]').trigger('change');
+    await wrapper.find('[aria-label="金额"]').setValue('88');
+    await wrapper.find('[aria-label="用途分类"]').setValue('7');
+    await wrapper.find('[aria-label="用途说明"]').setValue('客户拜访');
+    await wrapper.find('[aria-label="支付时间"]').setValue('2026-05-21T10:00:00');
+    await wrapper.find('[data-test="save-draft"]').trigger('click');
+    await flushPromises();
+
+    const preview = wrapper.find('img[alt="payment.png"]');
+    expect(preview.exists()).toBe(true);
+    expect(preview.attributes('src')).toBe('/api/attachments/21');
   });
 
   it('uploads selected attachments after creating a draft', async () => {

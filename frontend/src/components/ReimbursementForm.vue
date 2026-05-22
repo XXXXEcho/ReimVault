@@ -2,13 +2,14 @@
 import { onMounted, reactive, ref } from 'vue';
 import AttachmentUploader from './AttachmentUploader.vue';
 import { listCategories, type Category } from '../api/categories';
-import { createReimbursement, getReimbursement, submitReimbursement, updateReimbursement, uploadAttachment, type ReimbursementRecord } from '../api/reimbursements';
+import { createReimbursement, getReimbursement, submitReimbursement, updateReimbursement, uploadAttachment, type AttachmentType, type ReimbursementAttachment, type ReimbursementRecord } from '../api/reimbursements';
 
 const props = defineProps<{ id?: number }>();
 const emit = defineEmits<{ saved: [ReimbursementRecord]; submitted: [ReimbursementRecord] }>();
 
 const categories = ref<Category[]>([]);
 const recordId = ref<number | null>(props.id ?? null);
+const attachments = ref<ReimbursementAttachment[]>([]);
 const error = ref('');
 const form = reactive({
   amount: 0,
@@ -39,12 +40,21 @@ function isValid() {
   return Number(form.amount) > 0 && Number(form.categoryId) > 0 && form.purpose.trim() !== '' && form.paymentTime !== '';
 }
 
+function attachmentsByType(type: AttachmentType) {
+  return attachments.value.filter((attachment) => attachment.type === type);
+}
+
+function addAttachment(attachment: ReimbursementAttachment) {
+  attachments.value.push(attachment);
+}
+
 async function uploadSelectedAttachments(id: number) {
-  await Promise.all([
+  const responses = await Promise.all([
     ...form.paymentVoucherFiles.map((file) => uploadAttachment(id, 'PAYMENT_VOUCHER', file)),
     ...form.orderScreenshotFiles.map((file) => uploadAttachment(id, 'ORDER_SCREENSHOT', file)),
     ...form.invoiceFiles.map((file) => uploadAttachment(id, 'INVOICE', file))
   ]);
+  attachments.value.push(...responses.map((response) => response.data));
   form.paymentVoucherFiles = [];
   form.orderScreenshotFiles = [];
   form.invoiceFiles = [];
@@ -105,6 +115,7 @@ onMounted(async () => {
       purpose: response.data.purpose,
       paymentTime: toDateTimeLocal(response.data.paymentTime)
     });
+    attachments.value = response.data.attachments ?? [];
   }
 });
 </script>
@@ -121,9 +132,9 @@ onMounted(async () => {
     </label>
     <label>用途说明<input aria-label="用途说明" v-model="form.purpose" required /></label>
     <label>支付时间<input aria-label="支付时间" v-model="form.paymentTime" type="datetime-local" required /></label>
-    <AttachmentUploader v-model="form.paymentVoucherFiles" label="支付凭证" required attachment-type="PAYMENT_VOUCHER" :record-id="recordId" data-test="payment-voucher-files" />
-    <AttachmentUploader v-model="form.orderScreenshotFiles" label="订单截图" attachment-type="ORDER_SCREENSHOT" :record-id="recordId" data-test="order-screenshot-files" />
-    <AttachmentUploader v-model="form.invoiceFiles" label="发票" attachment-type="INVOICE" :record-id="recordId" data-test="invoice-files" />
+    <AttachmentUploader v-model="form.paymentVoucherFiles" label="支付凭证" required attachment-type="PAYMENT_VOUCHER" :record-id="recordId" :attachments="attachmentsByType('PAYMENT_VOUCHER')" data-test="payment-voucher-files" @uploaded="addAttachment" />
+    <AttachmentUploader v-model="form.orderScreenshotFiles" label="订单截图" attachment-type="ORDER_SCREENSHOT" :record-id="recordId" :attachments="attachmentsByType('ORDER_SCREENSHOT')" data-test="order-screenshot-files" @uploaded="addAttachment" />
+    <AttachmentUploader v-model="form.invoiceFiles" label="发票" attachment-type="INVOICE" :record-id="recordId" :attachments="attachmentsByType('INVOICE')" data-test="invoice-files" @uploaded="addAttachment" />
     <div class="actions">
       <button type="button" data-test="save-draft" @click="saveDraft">保存草稿</button>
       <button type="button" data-test="submit-reimbursement" @click="submitRecord">提交</button>

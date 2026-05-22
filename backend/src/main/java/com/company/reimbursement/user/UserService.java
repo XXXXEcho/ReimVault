@@ -44,6 +44,9 @@ public class UserService {
     public UserDtos.UserResponse update(Long id, UserDtos.UpdateUserRequest request) {
         User user = users.findById(id).orElseThrow(() -> new EntityNotFoundException("用户不存在"));
         user.update(request.displayName(), request.department(), request.role(), request.enabled());
+        if (request.password() != null && !request.password().isBlank()) {
+            user.changePassword(passwordEncoder.encode(request.password()));
+        }
         return UserDtos.UserResponse.from(user);
     }
 }

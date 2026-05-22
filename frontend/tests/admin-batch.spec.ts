@@ -42,6 +42,31 @@ describe('admin views', () => {
     });
   });
 
+  it('sends edited user profile and password to the admin users endpoint', async () => {
+    vi.mocked(http.get).mockResolvedValue({
+      data: [{ id: 7, username: 'lisi', displayName: '李四', department: '销售部', role: 'EMPLOYEE', enabled: true }]
+    });
+    vi.mocked(http.patch).mockResolvedValue({ data: { id: 7 } });
+    const wrapper = mount(UserAdminView, { global: { stubs: ['el-table', 'el-table-column', 'el-drawer', 'el-form', 'el-form-item', 'el-input', 'el-select', 'el-option', 'el-switch', 'el-button'] } });
+    await vi.waitFor(() => expect(wrapper.text()).toContain('lisi'));
+
+    await wrapper.find('tbody button').trigger('click');
+    await wrapper.find('[aria-label="姓名"]').setValue('李四改');
+    await wrapper.find('[aria-label="部门"]').setValue('财务部');
+    await wrapper.find('[aria-label="密码"]').setValue('new-secret');
+    await wrapper.find('[aria-label="角色"]').setValue('ADMIN');
+    await wrapper.find('[aria-label="启用"]').setValue(false);
+    await wrapper.find('[data-test="create-user"]').trigger('click');
+
+    expect(http.patch).toHaveBeenCalledWith('/admin/users/7', {
+      displayName: '李四改',
+      department: '财务部',
+      password: 'new-secret',
+      role: 'ADMIN',
+      enabled: false
+    });
+  });
+
   it('creates categories through the admin categories endpoint', async () => {
     vi.mocked(http.post).mockResolvedValue({ data: { id: 2 } });
     const wrapper = mount(CategoryAdminView, { global: { stubs: ['el-table', 'el-table-column', 'el-form', 'el-form-item', 'el-input', 'el-input-number', 'el-switch', 'el-button'] } });

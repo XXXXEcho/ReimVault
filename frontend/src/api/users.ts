@@ -21,6 +21,7 @@ export interface CreateUserInput {
 export interface UpdateUserInput {
   displayName: string;
   department: string;
+  password?: string;
   role: Role;
   enabled: boolean;
 }

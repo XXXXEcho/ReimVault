@@ -13,7 +13,7 @@ public class UserDtos {
     ) {
     }
 
-    public record UpdateUserRequest(@NotBlank String displayName, String department, @NotNull UserRole role, boolean enabled) {
+    public record UpdateUserRequest(@NotBlank String displayName, String department, String password, @NotNull UserRole role, boolean enabled) {
     }
 
     public record UserResponse(Long id, String username, String displayName, String department, UserRole role, boolean enabled) {
