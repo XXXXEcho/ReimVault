@@ -42,6 +42,34 @@ describe('admin views', () => {
     });
   });
 
+  it('shows a success message after saving a user', async () => {
+    vi.mocked(http.post).mockResolvedValue({ data: { id: 1 } });
+    const wrapper = mount(UserAdminView, { global: { stubs: ['el-table', 'el-table-column', 'el-drawer', 'el-form', 'el-form-item', 'el-input', 'el-select', 'el-option', 'el-switch', 'el-button'] } });
+
+    await wrapper.find('[aria-label="用户名"]').setValue('zhangsan');
+    await wrapper.find('[aria-label="姓名"]').setValue('张三');
+    await wrapper.find('[aria-label="部门"]').setValue('销售部');
+    await wrapper.find('[aria-label="密码"]').setValue('secret');
+    await wrapper.find('[data-test="create-user"]').trigger('click');
+    await vi.waitFor(() => expect(wrapper.text()).toContain('用户保存成功'));
+
+    expect(wrapper.find('[role="status"]').text()).toContain('用户保存成功');
+  });
+
+  it('shows backend errors when saving a user fails', async () => {
+    vi.mocked(http.post).mockRejectedValue({ response: { data: { message: '用户名已存在' } } });
+    const wrapper = mount(UserAdminView, { global: { stubs: ['el-table', 'el-table-column', 'el-drawer', 'el-form', 'el-form-item', 'el-input', 'el-select', 'el-option', 'el-switch', 'el-button'] } });
+
+    await wrapper.find('[aria-label="用户名"]').setValue('zhangsan');
+    await wrapper.find('[aria-label="姓名"]').setValue('张三');
+    await wrapper.find('[aria-label="部门"]').setValue('销售部');
+    await wrapper.find('[aria-label="密码"]').setValue('secret');
+    await wrapper.find('[data-test="create-user"]').trigger('click');
+    await vi.waitFor(() => expect(wrapper.text()).toContain('用户名已存在'));
+
+    expect(wrapper.find('[role="alert"]').text()).toContain('用户名已存在');
+  });
+
   it('sends edited user profile and password to the admin users endpoint', async () => {
     vi.mocked(http.get).mockResolvedValue({
       data: [{ id: 7, username: 'lisi', displayName: '李四', department: '销售部', role: 'EMPLOYEE', enabled: true }]

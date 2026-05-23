@@ -173,6 +173,23 @@ describe('reimbursement form', () => {
     expect(preview.attributes('src')).toBe('/api/attachments/31');
   });
 
+  it('uses masonry preview cards that preserve image proportions', async () => {
+    const wrapper = mount(ReimbursementForm, {
+      global: { stubs: ['el-form', 'el-form-item', 'el-input', 'el-input-number', 'el-select', 'el-option', 'el-date-picker', 'el-button', 'el-upload'] }
+    });
+    await Promise.resolve();
+
+    const paymentFile = new File(['payment'], 'payment.png', { type: 'image/png' });
+    const input = wrapper.find('[data-test="payment-voucher-files"]').element as HTMLInputElement;
+    Object.defineProperty(input, 'files', { value: [paymentFile], configurable: true });
+    await wrapper.find('[data-test="payment-voucher-files"]').trigger('change');
+    await flushPromises();
+
+    expect(wrapper.find('.attachment-preview-list').classes()).toContain('masonry-preview-list');
+    expect(wrapper.find('.attachment-preview').classes()).toContain('masonry-preview-card');
+    expect(wrapper.find('img[alt="payment.png"]').classes()).toContain('adaptive-preview-image');
+  });
+
   it('opens and closes a large image preview from an attachment thumbnail', async () => {
     vi.mocked(http.get).mockImplementation((url: string) => {
       if (url === '/categories') return Promise.resolve({ data: [{ id: 7, name: '差旅', enabled: true, sortOrder: 1, remark: '' }] });
@@ -202,6 +219,8 @@ describe('reimbursement form', () => {
 
     const dialog = wrapper.find('[role="dialog"]');
     expect(dialog.exists()).toBe(true);
+    expect(dialog.find('.large-preview-panel').classes()).toContain('expanded-preview-panel');
+    expect(dialog.find('img[alt="支付截图.png"]').classes()).toContain('expanded-preview-image');
     expect(dialog.find('img[alt="支付截图.png"]').attributes('src')).toBe('/api/attachments/11');
 
     await dialog.find('[aria-label="关闭大图预览"]').trigger('click');

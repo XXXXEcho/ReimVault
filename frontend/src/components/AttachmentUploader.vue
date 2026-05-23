@@ -69,28 +69,28 @@ async function chooseFiles(event: Event) {
 <template>
   <section class="uploader">
     <strong>{{ title }}</strong>
-    <div v-if="attachments?.length || localPreviews.length" class="attachment-preview-list">
-      <div v-for="attachment in attachments" :key="attachment.id" class="attachment-preview">
+    <div v-if="attachments?.length || localPreviews.length" class="attachment-preview-list masonry-preview-list">
+      <div v-for="attachment in attachments" :key="attachment.id" class="attachment-preview masonry-preview-card">
         <button v-if="isImage(attachment)" type="button" class="image-preview-button" @click="openLargePreview(attachment.originalFilename, attachmentUrl(attachment.id))">
-          <img :src="attachmentUrl(attachment.id)" :alt="attachment.originalFilename" />
+          <img class="adaptive-preview-image" :src="attachmentUrl(attachment.id)" :alt="attachment.originalFilename" />
         </button>
         <a v-else :href="attachmentUrl(attachment.id)" target="_blank" rel="noreferrer">{{ attachment.originalFilename }}</a>
       </div>
-      <div v-for="preview in localPreviews" :key="preview.url" class="attachment-preview">
+      <div v-for="preview in localPreviews" :key="preview.url" class="attachment-preview masonry-preview-card">
         <button v-if="preview.image" type="button" class="image-preview-button" @click="openLargePreview(preview.name, preview.url)">
-          <img :src="preview.url" :alt="preview.name" />
+          <img class="adaptive-preview-image" :src="preview.url" :alt="preview.name" />
         </button>
         <span v-else>{{ preview.name }}</span>
       </div>
     </div>
     <input :data-test="dataTest" type="file" multiple @change="chooseFiles" />
     <div v-if="largePreview" class="large-preview" role="dialog" aria-modal="true" @click.self="closeLargePreview">
-      <div class="large-preview-panel">
+      <div class="large-preview-panel expanded-preview-panel">
         <div class="large-preview-header">
           <strong>{{ largePreview.name }}</strong>
           <button type="button" aria-label="关闭大图预览" @click="closeLargePreview">关闭</button>
         </div>
-        <img :src="largePreview.url" :alt="largePreview.name" />
+        <img class="expanded-preview-image" :src="largePreview.url" :alt="largePreview.name" />
         <a :href="largePreview.url" target="_blank" rel="noreferrer">打开原图</a>
       </div>
     </div>
@@ -99,14 +99,16 @@ async function chooseFiles(event: Event) {
 
 <style scoped>
 .uploader { display: grid; gap: 8px; padding: 10px; border: 1px dashed #bbb; border-radius: 4px; }
-.attachment-preview-list { display: flex; flex-wrap: wrap; gap: 10px; }
-.attachment-preview { display: grid; place-items: center; min-width: 96px; min-height: 72px; padding: 8px; border: 1px solid #dbe3ef; border-radius: 10px; background: #f8fafc; color: #2563eb; font-size: 13px; text-decoration: none; }
-.attachment-preview img { width: 96px; height: 72px; object-fit: cover; border-radius: 8px; }
-.image-preview-button { padding: 0; border: 0; background: transparent; cursor: zoom-in; }
-.large-preview { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; padding: 32px; background: rgba(15, 23, 42, 0.72); }
-.large-preview-panel { display: grid; gap: 14px; max-width: min(960px, 92vw); max-height: 92vh; padding: 18px; border-radius: 18px; background: #fff; }
+.attachment-preview-list { column-count: 3; column-gap: 12px; }
+.attachment-preview { display: inline-grid; width: 100%; margin: 0 0 12px; break-inside: avoid; padding: 8px; border: 1px solid #dbe3ef; border-radius: 10px; background: #f8fafc; color: #2563eb; font-size: 13px; text-decoration: none; }
+.image-preview-button { display: grid; width: 100%; padding: 0; border: 0; background: transparent; cursor: zoom-in; }
+.attachment-preview img { width: 100%; max-height: 220px; object-fit: contain; border-radius: 8px; background: #fff; }
+.large-preview { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; padding: 24px; background: rgba(15, 23, 42, 0.72); }
+.large-preview-panel { display: grid; gap: 14px; width: min(1280px, 94vw); max-height: 94vh; padding: 18px; border-radius: 18px; background: #fff; }
 .large-preview-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
 .large-preview-header button { min-height: 36px; padding: 0 12px; border: 0; border-radius: 8px; background: #0f172a; color: #fff; cursor: pointer; }
-.large-preview-panel > img { max-width: 100%; max-height: 72vh; object-fit: contain; border-radius: 12px; }
+.large-preview-panel > img { justify-self: center; max-width: 100%; max-height: 88vh; object-fit: contain; border-radius: 12px; }
 .large-preview-panel > a { color: #2563eb; font-weight: 700; }
+@media (max-width: 760px) { .attachment-preview-list { column-count: 2; } }
+@media (max-width: 520px) { .attachment-preview-list { column-count: 1; } }
 </style>

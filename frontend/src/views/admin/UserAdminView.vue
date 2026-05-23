@@ -5,6 +5,7 @@ import type { Role } from '../../api/auth';
 
 const users = ref<UserRecord[]>([]);
 const editingId = ref<number | null>(null);
+const notice = ref<{ type: 'success' | 'error'; text: string } | null>(null);
 const form = reactive({ username: '', displayName: '', department: '', password: '', role: 'EMPLOYEE' as Role, enabled: true });
 
 async function load() {
@@ -17,14 +18,28 @@ function edit(user: UserRecord) {
   Object.assign(form, { ...user, password: '' });
 }
 
-async function save() {
-  if (editingId.value) {
-    const payload = { displayName: form.displayName, department: form.department, role: form.role, enabled: form.enabled, ...(form.password.trim() ? { password: form.password } : {}) };
-    await updateUser(editingId.value, payload);
-  } else {
-    await createUser({ username: form.username, displayName: form.displayName, department: form.department, password: form.password, role: form.role });
+function errorMessage(err: unknown) {
+  if (typeof err === 'object' && err && 'response' in err) {
+    const response = (err as { response?: { data?: { message?: string } } }).response;
+    if (response?.data?.message) return response.data.message;
   }
-  await load();
+  return '用户保存失败';
+}
+
+async function save() {
+  notice.value = null;
+  try {
+    if (editingId.value) {
+      const payload = { displayName: form.displayName, department: form.department, role: form.role, enabled: form.enabled, ...(form.password.trim() ? { password: form.password } : {}) };
+      await updateUser(editingId.value, payload);
+    } else {
+      await createUser({ username: form.username, displayName: form.displayName, department: form.department, password: form.password, role: form.role });
+    }
+    await load();
+    notice.value = { type: 'success', text: '用户保存成功' };
+  } catch (err) {
+    notice.value = { type: 'error', text: errorMessage(err) };
+  }
 }
 
 onMounted(load);
@@ -33,6 +48,7 @@ onMounted(load);
 <template>
   <section>
     <h1>用户管理</h1>
+    <p v-if="notice" :class="['notice', notice.type]" :role="notice.type === 'error' ? 'alert' : 'status'">{{ notice.text }}</p>
     <form class="admin-form" @submit.prevent="save">
       <input aria-label="用户名" v-model="form.username" placeholder="用户名" />
       <input aria-label="姓名" v-model="form.displayName" placeholder="姓名" />
@@ -51,6 +67,9 @@ onMounted(load);
 
 <style scoped>
 .admin-form { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 16px; }
+.notice { margin: 0 0 12px; padding: 10px 12px; border-radius: 8px; font-weight: 700; }
+.notice.success { background: #dcfce7; color: #166534; }
+.notice.error { background: #fee2e2; color: #991b1b; }
 table { width: 100%; border-collapse: collapse; }
 th, td { border: 1px solid #ddd; padding: 8px; }
 </style>
