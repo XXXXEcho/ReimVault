@@ -95,6 +95,34 @@ describe('admin views', () => {
     });
   });
 
+  it('resets edited user form before creating another user', async () => {
+    vi.mocked(http.get).mockResolvedValue({
+      data: [{ id: 7, username: 'lisi', displayName: '李四', department: '销售部', role: 'EMPLOYEE', enabled: true }]
+    });
+    vi.mocked(http.post).mockResolvedValue({ data: { id: 8 } });
+    const wrapper = mount(UserAdminView, { global: { stubs: ['el-table', 'el-table-column', 'el-drawer', 'el-form', 'el-form-item', 'el-input', 'el-select', 'el-option', 'el-switch', 'el-button'] } });
+    await vi.waitFor(() => expect(wrapper.text()).toContain('lisi'));
+
+    await wrapper.find('tbody button').trigger('click');
+    await wrapper.find('[data-test="new-user"]').trigger('click');
+    await wrapper.find('[aria-label="用户名"]').setValue('wangwu');
+    await wrapper.find('[aria-label="姓名"]').setValue('王五');
+    await wrapper.find('[aria-label="部门"]').setValue('财务部');
+    await wrapper.find('[aria-label="密码"]').setValue('secret');
+    await wrapper.find('[data-test="create-user"]').trigger('click');
+
+    expect(http.post).toHaveBeenCalledWith('/admin/users', {
+      username: 'wangwu',
+      displayName: '王五',
+      department: '财务部',
+      password: 'secret',
+      role: 'EMPLOYEE'
+    });
+    expect(http.patch).not.toHaveBeenCalled();
+    await vi.waitFor(() => expect(wrapper.text()).toContain('用户保存成功'));
+    expect(wrapper.find('[role="status"]').text()).toContain('用户保存成功');
+  });
+
   it('creates categories through the admin categories endpoint', async () => {
     vi.mocked(http.post).mockResolvedValue({ data: { id: 2 } });
     const wrapper = mount(CategoryAdminView, { global: { stubs: ['el-table', 'el-table-column', 'el-form', 'el-form-item', 'el-input', 'el-input-number', 'el-switch', 'el-button'] } });
@@ -110,6 +138,44 @@ describe('admin views', () => {
       sortOrder: 3,
       remark: '常用'
     });
+  });
+
+  it('shows a success message after saving a category', async () => {
+    vi.mocked(http.post).mockResolvedValue({ data: { id: 2 } });
+    const wrapper = mount(CategoryAdminView, { global: { stubs: ['el-table', 'el-table-column', 'el-form', 'el-form-item', 'el-input', 'el-input-number', 'el-switch', 'el-button'] } });
+
+    await wrapper.find('[aria-label="分类名称"]').setValue('办公用品');
+    await wrapper.find('[aria-label="排序"]').setValue('3');
+    await wrapper.find('[data-test="create-category"]').trigger('click');
+    await vi.waitFor(() => expect(wrapper.text()).toContain('分类保存成功'));
+
+    expect(wrapper.find('[role="status"]').text()).toContain('分类保存成功');
+  });
+
+  it('resets edited category form before creating another category', async () => {
+    vi.mocked(http.get).mockResolvedValue({
+      data: [{ id: 3, name: '交通费', enabled: false, sortOrder: 9, remark: '旧分类' }]
+    });
+    vi.mocked(http.post).mockResolvedValue({ data: { id: 4 } });
+    const wrapper = mount(CategoryAdminView, { global: { stubs: ['el-table', 'el-table-column', 'el-form', 'el-form-item', 'el-input', 'el-input-number', 'el-switch', 'el-button'] } });
+    await vi.waitFor(() => expect(wrapper.text()).toContain('交通费'));
+
+    await wrapper.find('tbody button').trigger('click');
+    await wrapper.find('[data-test="new-category"]').trigger('click');
+    await wrapper.find('[aria-label="分类名称"]').setValue('差旅费');
+    await wrapper.find('[aria-label="排序"]').setValue('1');
+    await wrapper.find('[aria-label="备注"]').setValue('新分类');
+    await wrapper.find('[data-test="create-category"]').trigger('click');
+
+    expect(http.post).toHaveBeenCalledWith('/admin/categories', {
+      name: '差旅费',
+      enabled: true,
+      sortOrder: 1,
+      remark: '新分类'
+    });
+    expect(http.patch).not.toHaveBeenCalled();
+    await vi.waitFor(() => expect(wrapper.text()).toContain('分类保存成功'));
+    expect(wrapper.find('[role="status"]').text()).toContain('分类保存成功');
   });
 
   it('passes employee, category, status, and payment date filters to admin reimbursement API', async () => {

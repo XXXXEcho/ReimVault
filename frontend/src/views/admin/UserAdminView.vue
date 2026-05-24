@@ -8,6 +8,18 @@ const editingId = ref<number | null>(null);
 const notice = ref<{ type: 'success' | 'error'; text: string } | null>(null);
 const form = reactive({ username: '', displayName: '', department: '', password: '', role: 'EMPLOYEE' as Role, enabled: true });
 
+function resetForm() {
+  editingId.value = null;
+  Object.assign(form, {
+    username: '',
+    displayName: '',
+    department: '',
+    password: '',
+    role: 'EMPLOYEE' as Role,
+    enabled: true
+  });
+}
+
 async function load() {
   const response = await listUsers();
   users.value = response.data;
@@ -47,7 +59,10 @@ onMounted(load);
 
 <template>
   <section>
-    <h1>用户管理</h1>
+    <div class="admin-title-row">
+      <h1>用户管理</h1>
+      <button data-test="new-user" type="button" @click="resetForm">新增用户</button>
+    </div>
     <p v-if="notice" :class="['notice', notice.type]" :role="notice.type === 'error' ? 'alert' : 'status'">{{ notice.text }}</p>
     <form class="admin-form" @submit.prevent="save">
       <input aria-label="用户名" v-model="form.username" placeholder="用户名" />
@@ -66,6 +81,8 @@ onMounted(load);
 </template>
 
 <style scoped>
+.admin-title-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+.admin-title-row h1 { margin: 0; }
 .admin-form { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 16px; }
 .notice { margin: 0 0 12px; padding: 10px 12px; border-radius: 8px; font-weight: 700; }
 .notice.success { background: #dcfce7; color: #166534; }

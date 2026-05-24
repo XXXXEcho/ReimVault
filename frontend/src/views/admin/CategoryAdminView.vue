@@ -4,7 +4,21 @@ import { createCategory, listAdminCategories, updateCategory, type Category } fr
 
 const categories = ref<Category[]>([]);
 const editingId = ref<number | null>(null);
+const notice = ref<{ type: 'success' | 'error'; text: string } | null>(null);
 const form = reactive({ name: '', enabled: true, sortOrder: 0, remark: '' });
+
+function resetForm() {
+  editingId.value = null;
+  Object.assign(form, { name: '', enabled: true, sortOrder: 0, remark: '' });
+}
+
+function errorMessage(err: unknown) {
+  if (typeof err === 'object' && err && 'response' in err) {
+    const response = (err as { response?: { data?: { message?: string } } }).response;
+    if (response?.data?.message) return response.data.message;
+  }
+  return '分类保存失败';
+}
 
 async function load() {
   const response = await listAdminCategories();
@@ -17,10 +31,16 @@ function edit(category: Category) {
 }
 
 async function save() {
+  notice.value = null;
   const payload = { name: form.name, enabled: form.enabled, sortOrder: Number(form.sortOrder), remark: form.remark };
-  if (editingId.value) await updateCategory(editingId.value, payload);
-  else await createCategory(payload);
-  await load();
+  try {
+    if (editingId.value) await updateCategory(editingId.value, payload);
+    else await createCategory(payload);
+    await load();
+    notice.value = { type: 'success', text: '分类保存成功' };
+  } catch (err) {
+    notice.value = { type: 'error', text: errorMessage(err) };
+  }
 }
 
 onMounted(load);
@@ -28,7 +48,11 @@ onMounted(load);
 
 <template>
   <section>
-    <h1>分类管理</h1>
+    <div class="admin-title-row">
+      <h1>分类管理</h1>
+      <button data-test="new-category" type="button" @click="resetForm">新增分类</button>
+    </div>
+    <p v-if="notice" :class="['notice', notice.type]" :role="notice.type === 'error' ? 'alert' : 'status'">{{ notice.text }}</p>
     <form class="admin-form" @submit.prevent="save">
       <input aria-label="分类名称" v-model="form.name" placeholder="分类名称" />
       <input aria-label="排序" v-model="form.sortOrder" type="number" placeholder="排序" />
@@ -44,6 +68,11 @@ onMounted(load);
 </template>
 
 <style scoped>
+.admin-title-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+.admin-title-row h1 { margin: 0; }
+.notice { margin: 0 0 12px; padding: 10px 12px; border-radius: 8px; font-weight: 700; }
+.notice.success { background: #dcfce7; color: #166534; }
+.notice.error { background: #fee2e2; color: #991b1b; }
 .admin-form { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 16px; }
 table { width: 100%; border-collapse: collapse; }
 th, td { border: 1px solid #ddd; padding: 8px; }
