@@ -37,3 +37,7 @@ export function createUser(payload: CreateUserInput) {
 export function updateUser(id: number, payload: UpdateUserInput) {
   return http.patch<UserRecord>(`/admin/users/${id}`, payload);
 }
+
+export function deleteUser(id: number) {
+  return http.delete(`/admin/users/${id}`);
+}

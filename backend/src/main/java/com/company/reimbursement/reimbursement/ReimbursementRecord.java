@@ -1,5 +1,6 @@
 package com.company.reimbursement.reimbursement;
 
+import com.company.reimbursement.batch.ReimbursementBatch;
 import com.company.reimbursement.category.ExpenseCategory;
 import com.company.reimbursement.user.User;
 import jakarta.persistence.Entity;
@@ -32,6 +33,9 @@ public class ReimbursementRecord {
     private Instant paymentTime;
     @Enumerated(EnumType.STRING)
     private ReimbursementStatus status;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "batch_id")
+    private ReimbursementBatch batch;
     private String adminRemark;
     private Instant createdAt;
     private Instant updatedAt;
@@ -61,6 +65,8 @@ public class ReimbursementRecord {
     public String getPurpose() { return purpose; }
     public Instant getPaymentTime() { return paymentTime; }
     public ReimbursementStatus getStatus() { return status; }
+    public ReimbursementBatch getBatch() { return batch; }
+    public void setBatch(ReimbursementBatch batch) { this.batch = batch; }
     public String getAdminRemark() { return adminRemark; }
     public Instant getSubmittedAt() { return submittedAt; }
     public Instant getArchivedAt() { return archivedAt; }

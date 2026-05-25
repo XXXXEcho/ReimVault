@@ -27,6 +27,8 @@ export interface ReimbursementRecord extends ReimbursementInput {
   adminRemark: string;
   submittedAt: string | null;
   archivedAt: string | null;
+  batchId: number | null;
+  batchName: string | null;
   attachments?: ReimbursementAttachment[];
 }
 

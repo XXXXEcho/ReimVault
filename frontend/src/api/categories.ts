@@ -25,3 +25,7 @@ export function createCategory(payload: CategoryInput) {
 export function updateCategory(id: number, payload: CategoryInput) {
   return http.patch<Category>(`/admin/categories/${id}`, payload);
 }
+
+export function deleteCategory(id: number) {
+  return http.delete(`/admin/categories/${id}`);
+}

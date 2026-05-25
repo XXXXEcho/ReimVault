@@ -1,5 +1,6 @@
 package com.company.reimbursement.category;
 
+import com.company.reimbursement.reimbursement.ReimbursementRepository;
 import jakarta.persistence.EntityNotFoundException;
 import java.util.Comparator;
 import java.util.List;
@@ -9,9 +10,11 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class ExpenseCategoryService {
     private final ExpenseCategoryRepository categories;
+    private final ReimbursementRepository records;
 
-    public ExpenseCategoryService(ExpenseCategoryRepository categories) {
+    public ExpenseCategoryService(ExpenseCategoryRepository categories, ReimbursementRepository records) {
         this.categories = categories;
+        this.records = records;
     }
 
     @Transactional
@@ -43,5 +46,14 @@ public class ExpenseCategoryService {
         ExpenseCategory category = categories.findById(id).orElseThrow(() -> new EntityNotFoundException("分类不存在"));
         category.update(request.name(), request.enabled(), request.sortOrder(), request.remark());
         return CategoryDtos.CategoryResponse.from(category);
+    }
+
+    @Transactional
+    public void delete(Long id) {
+        ExpenseCategory category = categories.findById(id).orElseThrow(() -> new EntityNotFoundException("分类不存在"));
+        if (records.existsByCategory_Id(id)) {
+            throw new IllegalArgumentException("该分类有关联报销记录，无法删除");
+        }
+        categories.delete(category);
     }
 }

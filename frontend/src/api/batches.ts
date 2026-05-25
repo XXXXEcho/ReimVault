@@ -47,3 +47,7 @@ export function exportBatchExcel(batchId: number) {
 export function exportBatchAttachments(batchId: number) {
   return http.get<Blob>(`/admin/batches/${batchId}/export/attachments`, { responseType: 'blob' });
 }
+
+export function ensureMonthlyBatch() {
+  return http.post<Batch>('/admin/batches/monthly');
+}

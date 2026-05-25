@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue';
-import { createUser, listUsers, updateUser, type UserRecord } from '../../api/users';
+import { createUser, deleteUser, listUsers, updateUser, type UserRecord } from '../../api/users';
 import type { Role } from '../../api/auth';
 
 const users = ref<UserRecord[]>([]);
@@ -35,7 +35,7 @@ function errorMessage(err: unknown) {
     const response = (err as { response?: { data?: { message?: string } } }).response;
     if (response?.data?.message) return response.data.message;
   }
-  return '用户保存失败';
+  return '操作失败';
 }
 
 async function save() {
@@ -49,6 +49,17 @@ async function save() {
     }
     await load();
     notice.value = { type: 'success', text: '用户保存成功' };
+  } catch (err) {
+    notice.value = { type: 'error', text: errorMessage(err) };
+  }
+}
+
+async function remove(id: number) {
+  if (!confirm('确定要删除该用户吗？')) return;
+  try {
+    await deleteUser(id);
+    await load();
+    notice.value = { type: 'success', text: '用户已删除' };
   } catch (err) {
     notice.value = { type: 'error', text: errorMessage(err) };
   }
@@ -75,7 +86,7 @@ onMounted(load);
     </form>
     <table>
       <thead><tr><th>用户名</th><th>姓名</th><th>部门</th><th>角色</th><th>启用</th><th>操作</th></tr></thead>
-      <tbody><tr v-for="user in users" :key="user.id"><td>{{ user.username }}</td><td>{{ user.displayName }}</td><td>{{ user.department }}</td><td>{{ user.role }}</td><td>{{ user.enabled ? '是' : '否' }}</td><td><button @click="edit(user)">编辑</button></td></tr></tbody>
+      <tbody><tr v-for="user in users" :key="user.id"><td>{{ user.username }}</td><td>{{ user.displayName }}</td><td>{{ user.department }}</td><td>{{ user.role }}</td><td>{{ user.enabled ? '是' : '否' }}</td><td class="actions"><button @click="edit(user)">编辑</button><button class="delete-btn" @click="remove(user.id)">删除</button></td></tr></tbody>
     </table>
   </section>
 </template>
@@ -89,4 +100,7 @@ onMounted(load);
 .notice.error { background: #fee2e2; color: #991b1b; }
 table { width: 100%; border-collapse: collapse; }
 th, td { border: 1px solid #ddd; padding: 8px; }
+.actions { display: flex; gap: 8px; align-items: center; }
+.delete-btn { background: none; border: 0; color: #b00020; cursor: pointer; padding: 0; }
+.delete-btn:hover { text-decoration: underline; }
 </style>

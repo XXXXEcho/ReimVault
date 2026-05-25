@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue';
-import { createCategory, listAdminCategories, updateCategory, type Category } from '../../api/categories';
+import { createCategory, deleteCategory, listAdminCategories, updateCategory, type Category } from '../../api/categories';
 
 const categories = ref<Category[]>([]);
 const editingId = ref<number | null>(null);
@@ -17,7 +17,7 @@ function errorMessage(err: unknown) {
     const response = (err as { response?: { data?: { message?: string } } }).response;
     if (response?.data?.message) return response.data.message;
   }
-  return '分类保存失败';
+  return '操作失败';
 }
 
 async function load() {
@@ -43,6 +43,17 @@ async function save() {
   }
 }
 
+async function remove(id: number) {
+  if (!confirm('确定要删除该分类吗？')) return;
+  try {
+    await deleteCategory(id);
+    await load();
+    notice.value = { type: 'success', text: '分类已删除' };
+  } catch (err) {
+    notice.value = { type: 'error', text: errorMessage(err) };
+  }
+}
+
 onMounted(load);
 </script>
 
@@ -62,7 +73,7 @@ onMounted(load);
     </form>
     <table>
       <thead><tr><th>名称</th><th>启用</th><th>排序</th><th>备注</th><th>操作</th></tr></thead>
-      <tbody><tr v-for="category in categories" :key="category.id"><td>{{ category.name }}</td><td>{{ category.enabled ? '是' : '否' }}</td><td>{{ category.sortOrder }}</td><td>{{ category.remark }}</td><td><button @click="edit(category)">编辑</button></td></tr></tbody>
+      <tbody><tr v-for="category in categories" :key="category.id"><td>{{ category.name }}</td><td>{{ category.enabled ? '是' : '否' }}</td><td>{{ category.sortOrder }}</td><td>{{ category.remark }}</td><td class="actions"><button @click="edit(category)">编辑</button><button class="delete-btn" @click="remove(category.id)">删除</button></td></tr></tbody>
     </table>
   </section>
 </template>
@@ -76,4 +87,7 @@ onMounted(load);
 .admin-form { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 16px; }
 table { width: 100%; border-collapse: collapse; }
 th, td { border: 1px solid #ddd; padding: 8px; }
+.actions { display: flex; gap: 8px; align-items: center; }
+.delete-btn { background: none; border: 0; color: #b00020; cursor: pointer; padding: 0; }
+.delete-btn:hover { text-decoration: underline; }
 </style>

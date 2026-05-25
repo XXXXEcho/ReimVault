@@ -1,5 +1,6 @@
 package com.company.reimbursement.batch;
 
+import java.time.YearMonth;
 import java.util.List;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
@@ -49,5 +50,14 @@ public class BatchController {
     @PostMapping("/{id}/archive")
     BatchDtos.BatchResponse archive(@PathVariable Long id) {
         return service.archive(id);
+    }
+
+    @PostMapping("/monthly")
+    BatchDtos.BatchResponse ensureMonthly() {
+        return toResponse(service.ensureMonthlyBatch(YearMonth.now()));
+    }
+
+    private BatchDtos.BatchResponse toResponse(ReimbursementBatch batch) {
+        return service.get(batch.getId());
     }
 }

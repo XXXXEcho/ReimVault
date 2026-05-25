@@ -1,5 +1,6 @@
 package com.company.reimbursement.user;
 
+import com.company.reimbursement.reimbursement.ReimbursementRepository;
 import jakarta.persistence.EntityNotFoundException;
 import java.util.Comparator;
 import java.util.List;
@@ -10,10 +11,12 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class UserService {
     private final UserRepository users;
+    private final ReimbursementRepository records;
     private final PasswordEncoder passwordEncoder;
 
-    public UserService(UserRepository users, PasswordEncoder passwordEncoder) {
+    public UserService(UserRepository users, ReimbursementRepository records, PasswordEncoder passwordEncoder) {
         this.users = users;
+        this.records = records;
         this.passwordEncoder = passwordEncoder;
     }
 
@@ -48,5 +51,14 @@ public class UserService {
             user.changePassword(passwordEncoder.encode(request.password()));
         }
         return UserDtos.UserResponse.from(user);
+    }
+
+    @Transactional
+    public void delete(Long id) {
+        User user = users.findById(id).orElseThrow(() -> new EntityNotFoundException("用户不存在"));
+        if (!records.findByEmployeeOrderByCreatedAtDesc(user).isEmpty()) {
+            throw new IllegalArgumentException("该用户有关联报销记录，无法删除，请禁用账号");
+        }
+        users.delete(user);
     }
 }

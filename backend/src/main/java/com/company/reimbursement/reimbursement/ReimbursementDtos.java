@@ -43,6 +43,8 @@ public class ReimbursementDtos {
             String adminRemark,
             Instant submittedAt,
             Instant archivedAt,
+            Long batchId,
+            String batchName,
             List<AttachmentResponse> attachments
     ) {
         public static RecordResponse from(ReimbursementRecord record, List<ReimbursementAttachment> attachments) {
@@ -59,6 +61,8 @@ public class ReimbursementDtos {
                     record.getAdminRemark(),
                     record.getSubmittedAt(),
                     record.getArchivedAt(),
+                    record.getBatch() != null ? record.getBatch().getId() : null,
+                    record.getBatch() != null ? record.getBatch().getName() : null,
                     attachments.stream().map(AttachmentResponse::from).toList()
             );
         }

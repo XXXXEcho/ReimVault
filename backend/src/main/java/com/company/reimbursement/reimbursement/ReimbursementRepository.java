@@ -7,4 +7,5 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
 public interface ReimbursementRepository extends JpaRepository<ReimbursementRecord, Long>, JpaSpecificationExecutor<ReimbursementRecord> {
     List<ReimbursementRecord> findByEmployeeOrderByCreatedAtDesc(User employee);
+    boolean existsByCategory_Id(Long categoryId);
 }

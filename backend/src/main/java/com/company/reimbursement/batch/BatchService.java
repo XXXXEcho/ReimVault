@@ -6,6 +6,8 @@ import com.company.reimbursement.reimbursement.ReimbursementStatus;
 import com.company.reimbursement.user.User;
 import com.company.reimbursement.user.UserRepository;
 import jakarta.persistence.EntityNotFoundException;
+import java.time.LocalDate;
+import java.time.YearMonth;
 import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -55,6 +57,7 @@ public class BatchService {
             throw new IllegalArgumentException("记录已加入批次");
         }
         items.save(ReimbursementBatchItem.create(batch, record));
+        record.setBatch(batch);
         return toResponse(batch);
     }
 
@@ -66,6 +69,7 @@ public class BatchService {
             throw new IllegalStateException("已归档记录不能移出批次");
         }
         items.delete(item);
+        item.getRecord().setBatch(null);
         return toResponse(batch);
     }
 
@@ -87,5 +91,19 @@ public class BatchService {
 
     private BatchDtos.BatchResponse toResponse(ReimbursementBatch batch) {
         return BatchDtos.BatchResponse.from(batch, items.findByBatchId(batch.getId()));
+    }
+
+    @Transactional
+    public ReimbursementBatch ensureMonthlyBatch(YearMonth month) {
+        String name = month.getYear() + "年" + month.getMonthValue() + "月报销批次";
+        return batches.findByName(name).orElseGet(() -> {
+            User system = users.findByUsername("admin").orElseThrow(() -> new EntityNotFoundException("系统管理员不存在"));
+            return batches.save(ReimbursementBatch.create(name, month.getYear() + "年" + month.getMonthValue() + "月自动创建", system));
+        });
+    }
+
+    public Long findMonthlyBatchId(YearMonth month) {
+        String name = month.getYear() + "年" + month.getMonthValue() + "月报销批次";
+        return batches.findByName(name).map(ReimbursementBatch::getId).orElse(null);
     }
 }
