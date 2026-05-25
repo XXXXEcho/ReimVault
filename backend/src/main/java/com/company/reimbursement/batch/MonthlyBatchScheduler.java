@@ -15,7 +15,7 @@ public class MonthlyBatchScheduler {
         this.batchService = batchService;
     }
 
-    @Scheduled(cron = "0 0 1 * * ")
+    @Scheduled(cron = "0 0 0 1 * ?")
     public void createMonthlyBatch() {
         YearMonth current = YearMonth.now();
         batchService.ensureMonthlyBatch(current);
