@@ -39,11 +39,10 @@ async function submit() {
 </template>
 
 <style scoped>
-.login-card { max-width: 360px; margin: 80px auto; }
-form { display: grid; gap: 16px; }
-label { display: grid; gap: 6px; }
-input { padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
-button { padding: 10px; }
-.primary-action { min-height: 40px; border: 0; border-radius: 10px; background: #2563eb; color: #fff; cursor: pointer; font-weight: 700; }
-.error { color: #b00020; margin: 0; }
+.login-card { max-width: 380px; margin: 0 auto; }
+form { display: grid; gap: 18px; }
+label { display: grid; gap: 6px; font-size: 13px; font-weight: 700; color: #374151; }
+.primary-action { min-height: 44px; border: 0; border-radius: 12px; background: #2563eb; color: #fff; cursor: pointer; font-size: 15px; font-weight: 700; transition: background 160ms ease; }
+.primary-action:hover { background: #1d4ed8; }
+.error { margin: 0; padding: 10px 14px; border-radius: 10px; background: #fee2e2; color: #991b1b; font-size: 13px; font-weight: 700; }
 </style>

@@ -30,12 +30,12 @@ onMounted(load);
           <td>{{ record.categoryName }}</td>
           <td>{{ record.purpose }}</td>
           <td>{{ record.paymentTime }}</td>
-          <td>{{ record.status }}</td>
+          <td><span class="status-tag" :class="record.status.toLowerCase()">{{ record.status }}</span></td>
           <td>{{ record.submittedAt }}</td>
-          <td class="actions">
+          <td class="row-actions">
             <RouterLink v-if="record.status === 'DRAFT'" :to="`/reimbursements/${record.id}`">编辑</RouterLink>
-            <RouterLink v-else :to="`/reimbursements/${record.id}`">查看</RouterLink>
-            <button v-if="record.status === 'DRAFT'" class="delete-btn" @click="remove(record.id)">删除</button>
+            <RouterLink v-else :to="`/reimbursements/${record.id}`" class="link-view">查看</RouterLink>
+            <button v-if="record.status === 'DRAFT'" class="btn-danger" @click="remove(record.id)">删除</button>
           </td>
         </tr>
       </tbody>
@@ -44,10 +44,14 @@ onMounted(load);
 </template>
 
 <style scoped>
-.toolbar { margin-bottom: 16px; }
-table { width: 100%; border-collapse: collapse; }
-th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-.actions { display: flex; gap: 8px; align-items: center; }
-.delete-btn { background: none; border: 0; color: #b00020; cursor: pointer; padding: 0; }
-.delete-btn:hover { text-decoration: underline; }
+.toolbar { margin-bottom: 18px; }
+.status-tag { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 11px; font-weight: 800; letter-spacing: .4px; }
+.status-tag.submitted { background: #dbeafe; color: #1d4ed8; }
+.status-tag.archived { background: #f3f4f6; color: #6b7280; }
+.status-tag.draft { background: #fef3c7; color: #b45309; }
+.row-actions { display: flex; gap: 6px; align-items: center; }
+.link-view { display: inline-flex; align-items: center; min-height: 34px; padding: 0 12px; border-radius: 8px; background: #f0f4ff; color: #2563eb; font-size: 12px; font-weight: 700; text-decoration: none; transition: background 160ms ease; }
+.link-view:hover { background: #2563eb; color: #fff; }
+.btn-danger { min-height: 34px; padding: 0 12px; border: 1px solid #fca5a5; border-radius: 8px; background: #fff; color: #dc2626; font-size: 12px; font-weight: 700; cursor: pointer; transition: background 160ms ease, color 160ms ease; }
+.btn-danger:hover { background: #dc2626; color: #fff; }
 </style>

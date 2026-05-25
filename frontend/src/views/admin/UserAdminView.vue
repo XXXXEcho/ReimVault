@@ -70,37 +70,36 @@ onMounted(load);
 
 <template>
   <section>
-    <div class="admin-title-row">
+    <div class="page-header">
       <h1>用户管理</h1>
       <button data-test="new-user" type="button" @click="resetForm">新增用户</button>
     </div>
     <p v-if="notice" :class="['notice', notice.type]" :role="notice.type === 'error' ? 'alert' : 'status'">{{ notice.text }}</p>
-    <form class="admin-form" @submit.prevent="save">
+    <form class="inline-form" @submit.prevent="save">
       <input aria-label="用户名" v-model="form.username" placeholder="用户名" />
       <input aria-label="姓名" v-model="form.displayName" placeholder="姓名" />
       <input aria-label="部门" v-model="form.department" placeholder="部门" />
       <input aria-label="密码" v-model="form.password" placeholder="密码" type="password" />
       <select aria-label="角色" v-model="form.role"><option value="EMPLOYEE">员工</option><option value="ADMIN">管理员</option></select>
-      <label><input aria-label="启用" type="checkbox" v-model="form.enabled" />启用</label>
+      <label class="checkbox-label"><input aria-label="启用" type="checkbox" v-model="form.enabled" />启用</label>
       <button data-test="create-user" type="button" @click="save">保存用户</button>
     </form>
     <table>
       <thead><tr><th>用户名</th><th>姓名</th><th>部门</th><th>角色</th><th>启用</th><th>操作</th></tr></thead>
-      <tbody><tr v-for="user in users" :key="user.id"><td>{{ user.username }}</td><td>{{ user.displayName }}</td><td>{{ user.department }}</td><td>{{ user.role }}</td><td>{{ user.enabled ? '是' : '否' }}</td><td class="actions"><button @click="edit(user)">编辑</button><button class="delete-btn" @click="remove(user.id)">删除</button></td></tr></tbody>
+      <tbody><tr v-for="user in users" :key="user.id"><td>{{ user.username }}</td><td>{{ user.displayName }}</td><td>{{ user.department }}</td><td>{{ user.role }}</td><td>{{ user.enabled ? '是' : '否' }}</td><td class="row-actions"><button @click="edit(user)">编辑</button><button class="btn-danger" @click="remove(user.id)">删除</button></td></tr></tbody>
     </table>
   </section>
 </template>
 
 <style scoped>
-.admin-title-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
-.admin-title-row h1 { margin: 0; }
-.admin-form { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 16px; }
-.notice { margin: 0 0 12px; padding: 10px 12px; border-radius: 8px; font-weight: 700; }
+.page-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
+.page-header h1 { margin: 0; }
+.inline-form { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 18px; }
+.checkbox-label { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: #475569; cursor: pointer; }
+.notice { margin: 0 0 14px; padding: 10px 14px; border-radius: 10px; font-size: 13px; font-weight: 700; }
 .notice.success { background: #dcfce7; color: #166534; }
 .notice.error { background: #fee2e2; color: #991b1b; }
-table { width: 100%; border-collapse: collapse; }
-th, td { border: 1px solid #ddd; padding: 8px; }
-.actions { display: flex; gap: 8px; align-items: center; }
-.delete-btn { background: none; border: 0; color: #b00020; cursor: pointer; padding: 0; }
-.delete-btn:hover { text-decoration: underline; }
+.row-actions { display: flex; gap: 6px; align-items: center; }
+.btn-danger { min-height: 34px; padding: 0 12px; border: 1px solid #fca5a5; border-radius: 8px; background: #fff; color: #dc2626; font-size: 12px; font-weight: 700; cursor: pointer; transition: background 160ms ease, color 160ms ease; }
+.btn-danger:hover { background: #dc2626; color: #fff; }
 </style>

@@ -59,35 +59,34 @@ onMounted(load);
 
 <template>
   <section>
-    <div class="admin-title-row">
+    <div class="page-header">
       <h1>分类管理</h1>
       <button data-test="new-category" type="button" @click="resetForm">新增分类</button>
     </div>
     <p v-if="notice" :class="['notice', notice.type]" :role="notice.type === 'error' ? 'alert' : 'status'">{{ notice.text }}</p>
-    <form class="admin-form" @submit.prevent="save">
+    <form class="inline-form" @submit.prevent="save">
       <input aria-label="分类名称" v-model="form.name" placeholder="分类名称" />
       <input aria-label="排序" v-model="form.sortOrder" type="number" placeholder="排序" />
       <input aria-label="备注" v-model="form.remark" placeholder="备注" />
-      <label><input aria-label="启用" type="checkbox" v-model="form.enabled" />启用</label>
+      <label class="checkbox-label"><input aria-label="启用" type="checkbox" v-model="form.enabled" />启用</label>
       <button data-test="create-category" type="button" @click="save">保存分类</button>
     </form>
     <table>
       <thead><tr><th>名称</th><th>启用</th><th>排序</th><th>备注</th><th>操作</th></tr></thead>
-      <tbody><tr v-for="category in categories" :key="category.id"><td>{{ category.name }}</td><td>{{ category.enabled ? '是' : '否' }}</td><td>{{ category.sortOrder }}</td><td>{{ category.remark }}</td><td class="actions"><button @click="edit(category)">编辑</button><button class="delete-btn" @click="remove(category.id)">删除</button></td></tr></tbody>
+      <tbody><tr v-for="category in categories" :key="category.id"><td>{{ category.name }}</td><td>{{ category.enabled ? '是' : '否' }}</td><td>{{ category.sortOrder }}</td><td>{{ category.remark }}</td><td class="row-actions"><button @click="edit(category)">编辑</button><button class="btn-danger" @click="remove(category.id)">删除</button></td></tr></tbody>
     </table>
   </section>
 </template>
 
 <style scoped>
-.admin-title-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
-.admin-title-row h1 { margin: 0; }
-.notice { margin: 0 0 12px; padding: 10px 12px; border-radius: 8px; font-weight: 700; }
+.page-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
+.page-header h1 { margin: 0; }
+.inline-form { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 18px; }
+.checkbox-label { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: #475569; cursor: pointer; }
+.notice { margin: 0 0 14px; padding: 10px 14px; border-radius: 10px; font-size: 13px; font-weight: 700; }
 .notice.success { background: #dcfce7; color: #166534; }
 .notice.error { background: #fee2e2; color: #991b1b; }
-.admin-form { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 16px; }
-table { width: 100%; border-collapse: collapse; }
-th, td { border: 1px solid #ddd; padding: 8px; }
-.actions { display: flex; gap: 8px; align-items: center; }
-.delete-btn { background: none; border: 0; color: #b00020; cursor: pointer; padding: 0; }
-.delete-btn:hover { text-decoration: underline; }
+.row-actions { display: flex; gap: 6px; align-items: center; }
+.btn-danger { min-height: 34px; padding: 0 12px; border: 1px solid #fca5a5; border-radius: 8px; background: #fff; color: #dc2626; font-size: 12px; font-weight: 700; cursor: pointer; transition: background 160ms ease, color 160ms ease; }
+.btn-danger:hover { background: #dc2626; color: #fff; }
 </style>
