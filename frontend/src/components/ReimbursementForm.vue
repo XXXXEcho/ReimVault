@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue';
+import { computed, onMounted, reactive, ref } from 'vue';
 import AttachmentUploader from './AttachmentUploader.vue';
 import { listCategories, type Category } from '../api/categories';
 import { createReimbursement, getReimbursement, submitReimbursement, updateReimbursement, uploadAttachment, type AttachmentType, type ReimbursementAttachment, type ReimbursementRecord } from '../api/reimbursements';
@@ -9,8 +9,11 @@ const emit = defineEmits<{ saved: [ReimbursementRecord]; submitted: [Reimburseme
 
 const categories = ref<Category[]>([]);
 const recordId = ref<number | null>(props.id ?? null);
+const recordStatus = ref<string | null>(null);
 const attachments = ref<ReimbursementAttachment[]>([]);
 const error = ref('');
+
+const readonly = computed(() => recordStatus.value != null && recordStatus.value !== 'DRAFT');
 const form = reactive({
   amount: 0,
   categoryId: 0,
@@ -109,6 +112,7 @@ onMounted(async () => {
   categories.value = categoryResponse.data;
   if (props.id) {
     const response = await getReimbursement(props.id);
+    recordStatus.value = response.data.status;
     Object.assign(form, {
       amount: response.data.amount,
       categoryId: response.data.categoryId,
@@ -123,19 +127,19 @@ onMounted(async () => {
 <template>
   <form class="reimbursement-form" @submit.prevent="saveDraft">
     <p v-if="error" class="error">{{ error }}</p>
-    <label>金额<input aria-label="金额" v-model="form.amount" type="number" min="0" step="0.01" required /></label>
+    <label>金额<input aria-label="金额" v-model="form.amount" type="number" min="0" step="0.01" required :disabled="readonly" /></label>
     <label>用途分类
-      <select aria-label="用途分类" v-model.number="form.categoryId" required>
+      <select aria-label="用途分类" v-model.number="form.categoryId" required :disabled="readonly">
         <option :value="0">请选择</option>
         <option v-for="category in categories" :key="category.id" :value="category.id">{{ category.name }}</option>
       </select>
     </label>
-    <label>用途说明<input aria-label="用途说明" v-model="form.purpose" required /></label>
-    <label>支付时间<input aria-label="支付时间" v-model="form.paymentTime" type="datetime-local" required /></label>
-    <AttachmentUploader v-model="form.paymentVoucherFiles" label="支付凭证" required attachment-type="PAYMENT_VOUCHER" :record-id="recordId" :attachments="attachmentsByType('PAYMENT_VOUCHER')" data-test="payment-voucher-files" @uploaded="addAttachment" />
-    <AttachmentUploader v-model="form.orderScreenshotFiles" label="订单截图" attachment-type="ORDER_SCREENSHOT" :record-id="recordId" :attachments="attachmentsByType('ORDER_SCREENSHOT')" data-test="order-screenshot-files" @uploaded="addAttachment" />
-    <AttachmentUploader v-model="form.invoiceFiles" label="发票" attachment-type="INVOICE" :record-id="recordId" :attachments="attachmentsByType('INVOICE')" data-test="invoice-files" @uploaded="addAttachment" />
-    <div class="actions">
+    <label>用途说明<input aria-label="用途说明" v-model="form.purpose" required :disabled="readonly" /></label>
+    <label>支付时间<input aria-label="支付时间" v-model="form.paymentTime" type="datetime-local" required :disabled="readonly" /></label>
+    <AttachmentUploader v-model="form.paymentVoucherFiles" label="支付凭证" required attachment-type="PAYMENT_VOUCHER" :record-id="recordId" :attachments="attachmentsByType('PAYMENT_VOUCHER')" :readonly="readonly" data-test="payment-voucher-files" @uploaded="addAttachment" />
+    <AttachmentUploader v-model="form.orderScreenshotFiles" label="订单截图" attachment-type="ORDER_SCREENSHOT" :record-id="recordId" :attachments="attachmentsByType('ORDER_SCREENSHOT')" :readonly="readonly" data-test="order-screenshot-files" @uploaded="addAttachment" />
+    <AttachmentUploader v-model="form.invoiceFiles" label="发票" attachment-type="INVOICE" :record-id="recordId" :attachments="attachmentsByType('INVOICE')" :readonly="readonly" data-test="invoice-files" @uploaded="addAttachment" />
+    <div v-if="!readonly" class="actions">
       <button type="button" data-test="save-draft" @click="saveDraft">保存草稿</button>
       <button type="button" data-test="submit-reimbursement" @click="submitRecord">提交</button>
     </div>

@@ -63,6 +63,14 @@ public class ReimbursementService {
         return response(record);
     }
 
+    @Transactional
+    public void deleteDraft(String username, Long id) {
+        ReimbursementRecord record = getOwnedRecord(username, id);
+        record.ensureDraft();
+        attachments.deleteByRecord(record);
+        records.delete(record);
+    }
+
     @Transactional(readOnly = true)
     public List<ReimbursementDtos.RecordResponse> listAll(ReimbursementDtos.AdminListFilter filter) {
         return records.findAll(adminFilter(filter)).stream()

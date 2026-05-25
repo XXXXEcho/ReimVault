@@ -98,7 +98,7 @@ public class ReimbursementRecord {
         this.updatedAt = Instant.now();
     }
 
-    private void ensureDraft() {
+    public void ensureDraft() {
         if (status != ReimbursementStatus.DRAFT) {
             throw new IllegalStateException("只能修改草稿记录");
         }

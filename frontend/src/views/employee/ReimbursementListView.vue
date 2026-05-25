@@ -1,14 +1,22 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue';
 import { RouterLink } from 'vue-router';
-import { listReimbursements, type ReimbursementRecord } from '../../api/reimbursements';
+import { deleteReimbursement, listReimbursements, type ReimbursementRecord } from '../../api/reimbursements';
 
 const records = ref<ReimbursementRecord[]>([]);
 
-onMounted(async () => {
+async function load() {
   const response = await listReimbursements();
   records.value = response.data;
-});
+}
+
+async function remove(id: number) {
+  if (!confirm('确定要删除这条报销记录吗？')) return;
+  await deleteReimbursement(id);
+  await load();
+}
+
+onMounted(load);
 </script>
 
 <template>
@@ -24,7 +32,11 @@ onMounted(async () => {
           <td>{{ record.paymentTime }}</td>
           <td>{{ record.status }}</td>
           <td>{{ record.submittedAt }}</td>
-          <td><RouterLink :to="`/reimbursements/${record.id}`">编辑</RouterLink></td>
+          <td class="actions">
+            <RouterLink v-if="record.status === 'DRAFT'" :to="`/reimbursements/${record.id}`">编辑</RouterLink>
+            <RouterLink v-else :to="`/reimbursements/${record.id}`">查看</RouterLink>
+            <button v-if="record.status === 'DRAFT'" class="delete-btn" @click="remove(record.id)">删除</button>
+          </td>
         </tr>
       </tbody>
     </table>
@@ -35,4 +47,7 @@ onMounted(async () => {
 .toolbar { margin-bottom: 16px; }
 table { width: 100%; border-collapse: collapse; }
 th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+.actions { display: flex; gap: 8px; align-items: center; }
+.delete-btn { background: none; border: 0; color: #b00020; cursor: pointer; padding: 0; }
+.delete-btn:hover { text-decoration: underline; }
 </style>

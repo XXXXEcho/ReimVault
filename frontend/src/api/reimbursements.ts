@@ -50,6 +50,10 @@ export function submitReimbursement(id: number) {
   return http.post<ReimbursementRecord>(`/reimbursements/${id}/submit`);
 }
 
+export function deleteReimbursement(id: number) {
+  return http.delete(`/reimbursements/${id}`);
+}
+
 export type AttachmentType = 'PAYMENT_VOUCHER' | 'ORDER_SCREENSHOT' | 'INVOICE';
 
 export function uploadAttachment(recordId: number, type: AttachmentType, file: File) {

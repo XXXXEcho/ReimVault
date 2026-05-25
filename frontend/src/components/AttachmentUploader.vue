@@ -10,6 +10,7 @@ const props = defineProps<{
   modelValue?: File[];
   attachments?: ReimbursementAttachment[];
   dataTest?: string;
+  readonly?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -83,7 +84,7 @@ async function chooseFiles(event: Event) {
         <span v-else>{{ preview.name }}</span>
       </div>
     </div>
-    <input :data-test="dataTest" type="file" multiple @change="chooseFiles" />
+    <input v-if="!readonly" :data-test="dataTest" type="file" multiple @change="chooseFiles" />
     <div v-if="largePreview" class="large-preview" role="dialog" aria-modal="true" @click.self="closeLargePreview">
       <div class="large-preview-panel expanded-preview-panel">
         <div class="large-preview-header">
