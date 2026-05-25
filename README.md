@@ -124,4 +124,72 @@ npm run build --prefix "F:/Code/报销/frontend"
 
 ## 当前边界
 
-第一期聚焦“材料收集、整理、导出、归档”。审批、支付、影像识别和外部系统集成后续再做。
+第一期聚焦”材料收集、整理、导出、归档”。审批、支付、影像识别和外部系统集成后续再做。
+
+## 远端服务器部署
+
+### 架构
+
+Docker Compose 运行 MySQL 8.0 与 Spring Boot 后端，宿主机 Nginx 托管前端静态文件并反向代理 `/api` 到后端。
+
+```text
+客户端 ──→ Nginx :8082 ──┬─→ /opt/reimvault/frontend/（静态文件）
+                          └─→ /api/ ──→ Docker backend :18083 ──→ Docker MySQL :3306
+```
+
+### 生产目录结构
+
+```text
+/opt/reimvault
+├── backend/app.jar          # Spring Boot 可执行 jar
+├── docker-compose.yml       # MySQL + 后端容器编排
+├── .env                     # 环境变量（不入库）
+├── files/                   # 上传附件存储目录
+├── frontend/                # 前端构建产物（npm run build 后的 dist 内容）
+└── mysql/                   # MySQL 数据持久化卷
+```
+
+### 端口分配
+
+| 服务 | 容器端口 | 宿主机映射 | 说明 |
+| --- | --- | --- | --- |
+| Nginx | — | `8082` | 前端静态文件 + API 反向代理 |
+| 后端 | `8080` | `127.0.0.1:18083` | 仅本机可访问，由 Nginx 代理 |
+| MySQL | `3306` | 不暴露 | Docker 内部网络，仅后端容器访问 |
+
+### 环境变量（`.env`）
+
+```text
+MYSQL_ROOT_PASSWORD=<root 密码>
+MYSQL_DATABASE=reimbursement
+MYSQL_USER=reimbursement
+MYSQL_PASSWORD=<数据库用户密码>
+BOOTSTRAP_ADMIN_USERNAME=admin
+BOOTSTRAP_ADMIN_PASSWORD=<管理员密码>
+BOOTSTRAP_ADMIN_DISPLAY_NAME=系统管理员
+BOOTSTRAP_ADMIN_DEPARTMENT=财务部
+```
+
+`BOOTSTRAP_ADMIN_*` 仅在数据库中不存在同名用户时创建管理员账号。
+
+### 部署步骤
+
+1. 构建 frontend：`npm run build`，将 `dist/` 内容放到 `/opt/reimvault/frontend/`。
+2. 构建 backend jar：`mvn -pl backend package -DskipTests`，将 jar 放到 `/opt/reimvault/backend/app.jar`。
+3. 将 `deploy/centos/docker-compose.yml` 复制到 `/opt/reimvault/`，创建 `.env` 文件。
+4. 将 `deploy/centos/reimvault-nginx.conf` 复制到 Nginx 配置目录（如 `/etc/nginx/conf.d/`）。
+5. 启动服务：
+
+```bash
+cd /opt/reimvault
+docker compose up -d
+sudo nginx -t && sudo systemctl reload nginx
+```
+
+6. 访问 `http://<server-ip>:8082`。
+
+### 访问地址
+
+```text
+http://<server-ip>:8082
+```
