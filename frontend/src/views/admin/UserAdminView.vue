@@ -80,13 +80,13 @@ onMounted(load);
       <input aria-label="姓名" v-model="form.displayName" placeholder="姓名" />
       <input aria-label="部门" v-model="form.department" placeholder="部门" />
       <input aria-label="密码" v-model="form.password" placeholder="密码" type="password" />
-      <select aria-label="角色" v-model="form.role"><option value="EMPLOYEE">员工</option><option value="ADMIN">管理员</option></select>
+      <select aria-label="角色" v-model="form.role"><option value="EMPLOYEE">员工</option><option value="SPECIALIST">报销专员</option><option value="ADMIN">管理员</option></select>
       <label class="checkbox-label"><input aria-label="启用" type="checkbox" v-model="form.enabled" />启用</label>
       <button data-test="create-user" type="button" @click="save">保存用户</button>
     </form>
     <table>
       <thead><tr><th>用户名</th><th>姓名</th><th>部门</th><th>角色</th><th>启用</th><th>操作</th></tr></thead>
-      <tbody><tr v-for="user in users" :key="user.id"><td>{{ user.username }}</td><td>{{ user.displayName }}</td><td>{{ user.department }}</td><td>{{ user.role }}</td><td>{{ user.enabled ? '是' : '否' }}</td><td class="row-actions"><button @click="edit(user)">编辑</button><button class="btn-danger" @click="remove(user.id)">删除</button></td></tr></tbody>
+      <tbody><tr v-for="user in users" :key="user.id"><td>{{ user.username }}</td><td>{{ user.displayName }}</td><td>{{ user.department }}</td><td>{{ { EMPLOYEE: '员工', SPECIALIST: '报销专员', ADMIN: '管理员' }[user.role] ?? user.role }}</td><td>{{ user.enabled ? '是' : '否' }}</td><td class="row-actions"><button @click="edit(user)">编辑</button><button class="btn-danger" @click="remove(user.id)">删除</button></td></tr></tbody>
     </table>
   </section>
 </template>
