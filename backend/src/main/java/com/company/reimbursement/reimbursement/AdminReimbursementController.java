@@ -33,6 +33,11 @@ public class AdminReimbursementController {
         return service.listAll(new ReimbursementDtos.AdminListFilter(employeeId, categoryId, status, from, to));
     }
 
+    @GetMapping("/{id}")
+    ReimbursementDtos.RecordResponse get(@PathVariable Long id) {
+        return service.getAny(id);
+    }
+
     @PatchMapping("/{id}/remark")
     ReimbursementDtos.RecordResponse updateRemark(@PathVariable Long id, @RequestBody ReimbursementDtos.AdminRemarkRequest request) {
         return service.updateAdminRemark(id, request);

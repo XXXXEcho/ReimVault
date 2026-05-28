@@ -6,6 +6,7 @@ import ReimbursementEditView from './views/employee/ReimbursementEditView.vue';
 import UserAdminView from './views/admin/UserAdminView.vue';
 import CategoryAdminView from './views/admin/CategoryAdminView.vue';
 import ReimbursementAdminView from './views/admin/ReimbursementAdminView.vue';
+import ReimbursementDetailView from './views/admin/ReimbursementDetailView.vue';
 import BatchAdminView from './views/admin/BatchAdminView.vue';
 
 const routes = [
@@ -17,6 +18,7 @@ const routes = [
   { path: '/admin/users', component: UserAdminView, meta: { requiresAdmin: true } },
   { path: '/admin/categories', component: CategoryAdminView, meta: { requiresAdmin: true } },
   { path: '/admin/reimbursements', component: ReimbursementAdminView, meta: { requiresAdmin: true } },
+  { path: '/admin/reimbursements/:id', component: ReimbursementDetailView, meta: { requiresAdmin: true } },
   { path: '/admin/batches', component: BatchAdminView, meta: { requiresAdmin: true } }
 ];
 

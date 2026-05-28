@@ -78,6 +78,12 @@ public class ReimbursementService {
                 .toList();
     }
 
+    @Transactional(readOnly = true)
+    public ReimbursementDtos.RecordResponse getAny(Long id) {
+        ReimbursementRecord record = records.findById(id).orElseThrow(() -> new EntityNotFoundException("报销记录不存在"));
+        return response(record);
+    }
+
     private ReimbursementDtos.RecordResponse response(ReimbursementRecord record) {
         return ReimbursementDtos.RecordResponse.from(record, attachments.findByRecord(record));
     }

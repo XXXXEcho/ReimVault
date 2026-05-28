@@ -80,6 +80,10 @@ export function listAdminReimbursements(params: AdminReimbursementFilters = { st
   return http.get<ReimbursementRecord[]>('/admin/reimbursements', { params });
 }
 
+export function getAdminReimbursement(id: number) {
+  return http.get<ReimbursementRecord>(`/admin/reimbursements/${id}`);
+}
+
 export function updateAdminRemark(id: number, adminRemark: string) {
   return http.patch<ReimbursementRecord>(`/admin/reimbursements/${id}/remark`, { adminRemark });
 }

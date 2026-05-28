@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue';
+import { RouterLink } from 'vue-router';
 import { listAdminReimbursements, updateAdminRemark, type ReimbursementRecord, type ReimbursementStatus } from '../../api/reimbursements';
 import { addBatchItem, ensureMonthlyBatch, type Batch } from '../../api/batches';
 
@@ -89,6 +90,7 @@ onMounted(async () => {
           <td>{{ record.batchName ?? '—' }}</td>
           <td><input class="remark-input" :aria-label="`备注${record.id}`" v-model="remarks[record.id]" /></td>
           <td class="row-actions">
+            <RouterLink :to="`/admin/reimbursements/${record.id}`" class="link-view">查看</RouterLink>
             <button @click="saveRemark(record.id)">保存备注</button>
             <button v-if="!record.batchId && record.status === 'SUBMITTED' && monthlyBatch" class="btn-secondary" @click="addToMonthlyBatch(record.id)">加入月度批次</button>
           </td>
@@ -111,4 +113,6 @@ onMounted(async () => {
 .row-actions { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
 .btn-secondary { background: #f0f4ff !important; color: #2563eb !important; font-size: 12px !important; }
 .btn-secondary:hover { background: #2563eb !important; color: #fff !important; }
+.link-view { display: inline-flex; align-items: center; min-height: 34px; padding: 0 12px; border-radius: 8px; background: #f0f4ff; color: #2563eb; font-size: 12px; font-weight: 700; text-decoration: none; transition: background 160ms ease; }
+.link-view:hover { background: #2563eb; color: #fff; }
 </style>
