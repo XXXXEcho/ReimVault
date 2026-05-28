@@ -52,4 +52,9 @@ public class EmployeeReimbursementController {
     ReimbursementDtos.RecordResponse submit(@PathVariable Long id, Authentication authentication) {
         return service.submit(authentication.getName(), id);
     }
+
+    @PostMapping("/{id}/withdraw")
+    ReimbursementDtos.RecordResponse withdraw(@PathVariable Long id, Authentication authentication) {
+        return service.withdraw(authentication.getName(), id);
+    }
 }

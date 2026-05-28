@@ -104,6 +104,18 @@ public class ReimbursementRecord {
         this.updatedAt = Instant.now();
     }
 
+    public void rejectToDraft() {
+        if (status != ReimbursementStatus.SUBMITTED) {
+            throw new IllegalStateException("只能打回已提交记录");
+        }
+        if (batch != null) {
+            throw new IllegalStateException("已入批次的记录不能打回，请先从批次中移除");
+        }
+        this.status = ReimbursementStatus.DRAFT;
+        this.submittedAt = null;
+        this.updatedAt = Instant.now();
+    }
+
     public void ensureDraft() {
         if (status != ReimbursementStatus.DRAFT) {
             throw new IllegalStateException("只能修改草稿记录");

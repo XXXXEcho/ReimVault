@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue';
 import { RouterLink } from 'vue-router';
-import { listAdminReimbursements, updateAdminRemark, type ReimbursementRecord, type ReimbursementStatus } from '../../api/reimbursements';
+import { listAdminReimbursements, rejectReimbursement, updateAdminRemark, type ReimbursementRecord, type ReimbursementStatus } from '../../api/reimbursements';
 import { addBatchItem, ensureMonthlyBatch, type Batch } from '../../api/batches';
 
 const records = ref<ReimbursementRecord[]>([]);
@@ -60,6 +60,18 @@ async function addToMonthlyBatch(recordId: number) {
   }
 }
 
+async function rejectRecord(id: number) {
+  if (!confirm('确定要打回这条记录吗？打回后员工可重新编辑。')) return;
+  notice.value = null;
+  try {
+    await rejectReimbursement(id);
+    notice.value = { type: 'success', text: '已打回' };
+    await load();
+  } catch (err) {
+    notice.value = { type: 'error', text: errorMessage(err) };
+  }
+}
+
 onMounted(async () => {
   await Promise.all([load(), initMonthlyBatch()]);
 });
@@ -93,6 +105,7 @@ onMounted(async () => {
             <RouterLink :to="`/admin/reimbursements/${record.id}`" class="link-view">查看</RouterLink>
             <button @click="saveRemark(record.id)">保存备注</button>
             <button v-if="!record.batchId && record.status === 'SUBMITTED' && monthlyBatch" class="btn-secondary" @click="addToMonthlyBatch(record.id)">加入月度批次</button>
+            <button v-if="record.status === 'SUBMITTED' && !record.batchId" class="btn-warning" @click="rejectRecord(record.id)">打回</button>
           </td>
         </tr>
       </tbody>
@@ -115,4 +128,6 @@ onMounted(async () => {
 .btn-secondary:hover { background: #2563eb !important; color: #fff !important; }
 .link-view { display: inline-flex; align-items: center; min-height: 34px; padding: 0 12px; border-radius: 8px; background: #f0f4ff; color: #2563eb; font-size: 12px; font-weight: 700; text-decoration: none; transition: background 160ms ease; }
 .link-view:hover { background: #2563eb; color: #fff; }
+.btn-warning { min-height: 34px; padding: 0 12px; border: 1px solid #fcd34d; border-radius: 8px; background: #fff; color: #b45309; font-size: 12px; font-weight: 700; cursor: pointer; transition: background 160ms ease, color 160ms ease; }
+.btn-warning:hover { background: #b45309; color: #fff; }
 </style>

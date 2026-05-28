@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue';
 import { RouterLink } from 'vue-router';
-import { deleteReimbursement, listReimbursements, type ReimbursementRecord } from '../../api/reimbursements';
+import { deleteReimbursement, listReimbursements, withdrawReimbursement, type ReimbursementRecord } from '../../api/reimbursements';
 
 const records = ref<ReimbursementRecord[]>([]);
 
@@ -13,6 +13,12 @@ async function load() {
 async function remove(id: number) {
   if (!confirm('确定要删除这条报销记录吗？')) return;
   await deleteReimbursement(id);
+  await load();
+}
+
+async function withdraw(id: number) {
+  if (!confirm('确定要撤回这条报销记录吗？撤回后可重新编辑。')) return;
+  await withdrawReimbursement(id);
   await load();
 }
 
@@ -36,6 +42,7 @@ onMounted(load);
             <RouterLink v-if="record.status === 'DRAFT'" :to="`/reimbursements/${record.id}`">编辑</RouterLink>
             <RouterLink v-else :to="`/reimbursements/${record.id}`" class="link-view">查看</RouterLink>
             <button v-if="record.status === 'DRAFT'" class="btn-danger" @click="remove(record.id)">删除</button>
+            <button v-if="record.status === 'SUBMITTED' && !record.batchId" class="btn-warning" @click="withdraw(record.id)">撤回</button>
           </td>
         </tr>
       </tbody>
@@ -54,4 +61,6 @@ onMounted(load);
 .link-view:hover { background: #2563eb; color: #fff; }
 .btn-danger { min-height: 34px; padding: 0 12px; border: 1px solid #fca5a5; border-radius: 8px; background: #fff; color: #dc2626; font-size: 12px; font-weight: 700; cursor: pointer; transition: background 160ms ease, color 160ms ease; }
 .btn-danger:hover { background: #dc2626; color: #fff; }
+.btn-warning { min-height: 34px; padding: 0 12px; border: 1px solid #fcd34d; border-radius: 8px; background: #fff; color: #b45309; font-size: 12px; font-weight: 700; cursor: pointer; transition: background 160ms ease, color 160ms ease; }
+.btn-warning:hover { background: #b45309; color: #fff; }
 </style>

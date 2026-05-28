@@ -52,6 +52,10 @@ export function submitReimbursement(id: number) {
   return http.post<ReimbursementRecord>(`/reimbursements/${id}/submit`);
 }
 
+export function withdrawReimbursement(id: number) {
+  return http.post<ReimbursementRecord>(`/reimbursements/${id}/withdraw`);
+}
+
 export function deleteReimbursement(id: number) {
   return http.delete(`/reimbursements/${id}`);
 }
@@ -86,4 +90,8 @@ export function getAdminReimbursement(id: number) {
 
 export function updateAdminRemark(id: number, adminRemark: string) {
   return http.patch<ReimbursementRecord>(`/admin/reimbursements/${id}/remark`, { adminRemark });
+}
+
+export function rejectReimbursement(id: number) {
+  return http.post<ReimbursementRecord>(`/admin/reimbursements/${id}/reject`);
 }

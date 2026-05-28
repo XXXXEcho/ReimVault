@@ -64,6 +64,20 @@ public class ReimbursementService {
     }
 
     @Transactional
+    public ReimbursementDtos.RecordResponse withdraw(String username, Long id) {
+        ReimbursementRecord record = getOwnedRecord(username, id);
+        record.rejectToDraft();
+        return response(record);
+    }
+
+    @Transactional
+    public ReimbursementDtos.RecordResponse reject(Long id) {
+        ReimbursementRecord record = records.findById(id).orElseThrow(() -> new EntityNotFoundException("报销记录不存在"));
+        record.rejectToDraft();
+        return response(record);
+    }
+
+    @Transactional
     public void deleteDraft(String username, Long id) {
         ReimbursementRecord record = getOwnedRecord(username, id);
         record.ensureDraft();
