@@ -16,10 +16,10 @@ const routes = [
   { path: '/reimbursements/new', component: ReimbursementEditView },
   { path: '/reimbursements/:id', component: ReimbursementEditView },
   { path: '/admin/users', component: UserAdminView, meta: { requiresAdmin: true } },
-  { path: '/admin/categories', component: CategoryAdminView, meta: { requiresAdmin: true } },
-  { path: '/admin/reimbursements', component: ReimbursementAdminView, meta: { requiresAdmin: true } },
-  { path: '/admin/reimbursements/:id', component: ReimbursementDetailView, meta: { requiresAdmin: true } },
-  { path: '/admin/batches', component: BatchAdminView, meta: { requiresAdmin: true } }
+  { path: '/admin/categories', component: CategoryAdminView, meta: { requiresManagement: true } },
+  { path: '/admin/reimbursements', component: ReimbursementAdminView, meta: { requiresManagement: true } },
+  { path: '/admin/reimbursements/:id', component: ReimbursementDetailView, meta: { requiresManagement: true } },
+  { path: '/admin/batches', component: BatchAdminView, meta: { requiresManagement: true } }
 ];
 
 export function createAppRouter(history: RouterHistory = createWebHistory()) {
@@ -36,6 +36,7 @@ export function createAppRouter(history: RouterHistory = createWebHistory()) {
       }
     }
     if (to.meta.requiresAdmin && auth.user?.role !== 'ADMIN') return '/reimbursements';
+    if (to.meta.requiresManagement && auth.user?.role !== 'ADMIN' && auth.user?.role !== 'SPECIALIST') return '/reimbursements';
     return true;
   });
 

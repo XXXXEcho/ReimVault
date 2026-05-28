@@ -1,6 +1,6 @@
 import http from './http';
 
-export type Role = 'ADMIN' | 'EMPLOYEE';
+export type Role = 'ADMIN' | 'SPECIALIST' | 'EMPLOYEE';
 
 export interface CurrentUser {
   id: number;

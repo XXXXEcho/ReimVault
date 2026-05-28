@@ -8,14 +8,14 @@ const router = useRouter();
 
 const navigationItems = [
   { to: '/reimbursements', label: '我的报销' },
-  { to: '/admin/reimbursements', label: '报销管理', adminOnly: true },
-  { to: '/admin/batches', label: '批次管理', adminOnly: true },
-  { to: '/admin/users', label: '用户管理', adminOnly: true },
-  { to: '/admin/categories', label: '分类管理', adminOnly: true }
+  { to: '/admin/reimbursements', label: '报销管理', roles: ['ADMIN', 'SPECIALIST'] as const },
+  { to: '/admin/batches', label: '批次管理', roles: ['ADMIN', 'SPECIALIST'] as const },
+  { to: '/admin/users', label: '用户管理', roles: ['ADMIN'] as const },
+  { to: '/admin/categories', label: '分类管理', roles: ['ADMIN', 'SPECIALIST'] as const }
 ];
 
-function canShow(item: { adminOnly?: boolean }) {
-  return !item.adminOnly || auth.user?.role === 'ADMIN';
+function canShow(item: { roles?: readonly string[] }) {
+  return !item.roles || item.roles.includes(auth.user?.role ?? '');
 }
 
 async function logout() {

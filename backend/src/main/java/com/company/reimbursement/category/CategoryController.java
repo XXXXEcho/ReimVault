@@ -28,25 +28,25 @@ public class CategoryController {
     }
 
     @GetMapping("/api/admin/categories")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN','SPECIALIST')")
     List<CategoryDtos.CategoryResponse> listAll() {
         return service.listAll();
     }
 
     @PostMapping("/api/admin/categories")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN','SPECIALIST')")
     CategoryDtos.CategoryResponse create(@Valid @RequestBody CategoryDtos.CreateCategoryRequest request) {
         return service.create(request);
     }
 
     @PatchMapping("/api/admin/categories/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN','SPECIALIST')")
     CategoryDtos.CategoryResponse update(@PathVariable Long id, @Valid @RequestBody CategoryDtos.UpdateCategoryRequest request) {
         return service.update(id, request);
     }
 
     @DeleteMapping("/api/admin/categories/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN','SPECIALIST')")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     void delete(@PathVariable Long id) {
         service.delete(id);
