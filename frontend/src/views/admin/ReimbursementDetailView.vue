@@ -6,6 +6,7 @@ import { getAdminReimbursement, type ReimbursementRecord, type ReimbursementAtta
 const route = useRoute();
 const router = useRouter();
 const record = ref<ReimbursementRecord | null>(null);
+const largePreview = ref<{ name: string; url: string } | null>(null);
 
 function attachmentsByType(type: AttachmentType) {
   return record.value?.attachments?.filter((a) => a.type === type) ?? [];
@@ -17,6 +18,14 @@ function attachmentUrl(id: number) {
 
 function isImage(a: ReimbursementAttachment) {
   return a.contentType.startsWith('image/');
+}
+
+function openLargePreview(name: string, url: string) {
+  largePreview.value = { name, url };
+}
+
+function closeLargePreview() {
+  largePreview.value = null;
 }
 
 onMounted(async () => {
@@ -51,9 +60,9 @@ onMounted(async () => {
         <h2>支付凭证</h2>
         <div v-if="attachmentsByType('PAYMENT_VOUCHER').length" class="preview-list">
           <div v-for="a in attachmentsByType('PAYMENT_VOUCHER')" :key="a.id" class="preview-card">
-            <a v-if="isImage(a)" :href="attachmentUrl(a.id)" target="_blank" rel="noreferrer">
+            <button v-if="isImage(a)" type="button" class="image-preview-button" @click="openLargePreview(a.originalFilename, attachmentUrl(a.id))">
               <img :src="attachmentUrl(a.id)" :alt="a.originalFilename" />
-            </a>
+            </button>
             <a v-else :href="attachmentUrl(a.id)" target="_blank" rel="noreferrer" class="file-link">{{ a.originalFilename }}</a>
           </div>
         </div>
@@ -62,9 +71,9 @@ onMounted(async () => {
         <h2>订单截图</h2>
         <div v-if="attachmentsByType('ORDER_SCREENSHOT').length" class="preview-list">
           <div v-for="a in attachmentsByType('ORDER_SCREENSHOT')" :key="a.id" class="preview-card">
-            <a v-if="isImage(a)" :href="attachmentUrl(a.id)" target="_blank" rel="noreferrer">
+            <button v-if="isImage(a)" type="button" class="image-preview-button" @click="openLargePreview(a.originalFilename, attachmentUrl(a.id))">
               <img :src="attachmentUrl(a.id)" :alt="a.originalFilename" />
-            </a>
+            </button>
             <a v-else :href="attachmentUrl(a.id)" target="_blank" rel="noreferrer" class="file-link">{{ a.originalFilename }}</a>
           </div>
         </div>
@@ -73,13 +82,23 @@ onMounted(async () => {
         <h2>发票</h2>
         <div v-if="attachmentsByType('INVOICE').length" class="preview-list">
           <div v-for="a in attachmentsByType('INVOICE')" :key="a.id" class="preview-card">
-            <a v-if="isImage(a)" :href="attachmentUrl(a.id)" target="_blank" rel="noreferrer">
+            <button v-if="isImage(a)" type="button" class="image-preview-button" @click="openLargePreview(a.originalFilename, attachmentUrl(a.id))">
               <img :src="attachmentUrl(a.id)" :alt="a.originalFilename" />
-            </a>
+            </button>
             <a v-else :href="attachmentUrl(a.id)" target="_blank" rel="noreferrer" class="file-link">{{ a.originalFilename }}</a>
           </div>
         </div>
         <p v-else class="empty">暂无</p>
+      </div>
+    </div>
+    <div v-if="largePreview" class="large-preview" role="dialog" aria-modal="true" @click.self="closeLargePreview">
+      <div class="large-preview-panel">
+        <div class="large-preview-header">
+          <strong>{{ largePreview.name }}</strong>
+          <button type="button" aria-label="关闭大图预览" @click="closeLargePreview">关闭</button>
+        </div>
+        <img class="expanded-preview-image" :src="largePreview.url" :alt="largePreview.name" />
+        <a :href="largePreview.url" target="_blank" rel="noreferrer">查看原图</a>
       </div>
     </div>
   </section>
@@ -100,9 +119,16 @@ dd { margin: 0; color: #1f2937; font-size: 13px; }
 .status-tag.archived { background: #f3f4f6; color: #6b7280; }
 .status-tag.draft { background: #fef3c7; color: #b45309; }
 .preview-list { column-count: 2; column-gap: 12px; margin-bottom: 16px; }
-.preview-card { display: inline-grid; width: 100%; margin: 0 0 12px; break-inside: avoid; padding: 8px; border: 1px solid #e2e8f0; border-radius: 10px; background: #f8fafc; }
-.preview-card img { width: 100%; max-height: 200px; object-fit: contain; border-radius: 6px; }
-.preview-card a { color: #2563eb; text-decoration: none; }
-.file-link { font-size: 13px; font-weight: 600; }
+.preview-card { display: inline-grid; width: 100%; margin: 0 0 12px; break-inside: avoid; padding: 8px; border: 1px solid #dbe3ef; border-radius: 10px; background: #f8fafc; }
+.image-preview-button { display: grid; width: 100%; padding: 0; border: 0; background: transparent; cursor: zoom-in; }
+.image-preview-button img { width: 100%; max-height: 220px; object-fit: contain; border-radius: 8px; background: #fff; }
+.file-link { color: #2563eb; font-size: 13px; font-weight: 600; text-decoration: none; }
 .empty { color: #94a3b8; font-size: 13px; margin: 0 0 16px; }
+.large-preview { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; padding: 24px; background: rgba(15, 23, 42, 0.72); }
+.large-preview-panel { display: grid; gap: 14px; width: min(1280px, 94vw); max-height: 94vh; padding: 18px; border-radius: 18px; background: #fff; }
+.large-preview-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.large-preview-header button { min-height: 36px; padding: 0 12px; border: 0; border-radius: 8px; background: #0f172a; color: #fff; cursor: pointer; }
+.large-preview-panel > img { justify-self: center; max-width: 100%; max-height: 88vh; object-fit: contain; border-radius: 12px; }
+.large-preview-panel > a { color: #2563eb; font-weight: 700; }
+@media (max-width: 760px) { .preview-list { column-count: 1; } }
 </style>
