@@ -35,6 +35,7 @@ export interface ReimbursementRecord extends ReimbursementInput {
   categoryName: string;
   status: ReimbursementStatus;
   adminRemark: string;
+  oaNumber: string;
   submittedAt: string | null;
   archivedAt: string | null;
   reimbursedAt: string | null;
@@ -90,6 +91,7 @@ export interface AdminReimbursementFilters {
   from?: string;
   to?: string;
   reimbursed?: boolean;
+  oaNumber?: string;
 }
 
 export function listAdminReimbursements(params: AdminReimbursementFilters = { status: 'SUBMITTED' }) {
@@ -114,4 +116,8 @@ export function markReimbursed(id: number) {
 
 export function unreimburse(id: number) {
   return http.post<ReimbursementRecord>(`/admin/reimbursements/${id}/unreimburse`);
+}
+
+export function updateOaNumber(id: number, oaNumber: string) {
+  return http.patch<ReimbursementRecord>(`/admin/reimbursements/${id}/oa-number`, { oaNumber });
 }

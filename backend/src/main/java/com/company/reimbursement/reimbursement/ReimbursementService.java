@@ -128,6 +128,9 @@ public class ReimbursementService {
                 if (filter.reimbursed()) predicates.add(cb.isNotNull(root.get("reimbursedAt")));
                 else predicates.add(cb.isNull(root.get("reimbursedAt")));
             }
+            if (filter.oaNumber() != null && !filter.oaNumber().isBlank()) {
+                predicates.add(cb.equal(root.get("oaNumber"), filter.oaNumber()));
+            }
             return cb.and(predicates.toArray(Predicate[]::new));
         };
     }
@@ -136,6 +139,13 @@ public class ReimbursementService {
     public ReimbursementDtos.RecordResponse updateAdminRemark(Long id, ReimbursementDtos.AdminRemarkRequest request) {
         ReimbursementRecord record = records.findById(id).orElseThrow(() -> new EntityNotFoundException("报销记录不存在"));
         record.setAdminRemark(request.adminRemark());
+        return response(record);
+    }
+
+    @Transactional
+    public ReimbursementDtos.RecordResponse updateOaNumber(Long id, ReimbursementDtos.OaNumberRequest request) {
+        ReimbursementRecord record = records.findById(id).orElseThrow(() -> new EntityNotFoundException("报销记录不存在"));
+        record.setOaNumber(request.oaNumber());
         return response(record);
     }
 

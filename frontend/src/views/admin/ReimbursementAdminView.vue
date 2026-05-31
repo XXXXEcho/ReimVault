@@ -1,13 +1,14 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue';
 import { RouterLink } from 'vue-router';
-import { listAdminReimbursements, rejectReimbursement, updateAdminRemark, markReimbursed, unreimburse, type ReimbursementRecord, type ReimbursementStatus, statusLabel, formatTime } from '../../api/reimbursements';
+import { listAdminReimbursements, rejectReimbursement, updateAdminRemark, markReimbursed, unreimburse, updateOaNumber, type ReimbursementRecord, type ReimbursementStatus, statusLabel, formatTime } from '../../api/reimbursements';
 import { addBatchItem, ensureMonthlyBatch, type Batch } from '../../api/batches';
 import { useAuthStore } from '../../stores/auth';
 
 const records = ref<ReimbursementRecord[]>([]);
-const filters = reactive({ employeeId: '', categoryId: '', status: 'SUBMITTED', from: '', to: '', reimbursed: false });
+const filters = reactive({ employeeId: '', categoryId: '', status: 'SUBMITTED', from: '', to: '', reimbursed: false, oaNumber: '' });
 const remarks = reactive<Record<number, string>>({});
+const oaNumbers = reactive<Record<number, string>>({});
 const monthlyBatch = ref<Batch | null>(null);
 const notice = ref<{ type: 'success' | 'error'; text: string } | null>(null);
 const auth = useAuthStore();
@@ -20,7 +21,8 @@ function filterParams() {
     status: (filters.status || undefined) as ReimbursementStatus | undefined,
     from: filters.from || undefined,
     to: filters.to || undefined,
-    reimbursed: filters.reimbursed || undefined
+    reimbursed: filters.reimbursed || undefined,
+    oaNumber: filters.oaNumber || undefined
   };
 }
 
@@ -35,12 +37,26 @@ function errorMessage(err: unknown) {
 async function load() {
   const response = await listAdminReimbursements(filterParams());
   records.value = response.data;
-  for (const record of records.value) remarks[record.id] = record.adminRemark ?? '';
+  for (const record of records.value) {
+    remarks[record.id] = record.adminRemark ?? '';
+    oaNumbers[record.id] = record.oaNumber ?? '';
+  }
 }
 
 async function saveRemark(id: number) {
   await updateAdminRemark(id, remarks[id] ?? '');
   await load();
+}
+
+async function saveOaNumber(id: number) {
+  notice.value = null;
+  try {
+    await updateOaNumber(id, oaNumbers[id] ?? '');
+    notice.value = { type: 'success', text: 'OA编号已保存' };
+    await load();
+  } catch (err) {
+    notice.value = { type: 'error', text: errorMessage(err) };
+  }
 }
 
 async function initMonthlyBatch() {
@@ -113,11 +129,12 @@ onMounted(async () => {
       <select aria-label="状态" v-model="filters.status"><option value="SUBMITTED">已提交未报销</option><option value="ARCHIVED">已报销</option><option value="DRAFT">未提交</option></select>
       <input aria-label="开始日期" v-model="filters.from" type="date" />
       <input aria-label="结束日期" v-model="filters.to" type="date" />
+      <input aria-label="OA编号" v-model="filters.oaNumber" placeholder="OA编号" />
       <button type="button" :class="{ active: filters.reimbursed }" @click="filters.reimbursed = !filters.reimbursed; load()">{{ filters.reimbursed ? '显示全部' : '只看已报销' }}</button>
       <button type="submit">筛选</button>
     </form>
     <table>
-      <thead><tr><th>员工</th><th>金额</th><th>用途分类</th><th>用途说明</th><th>支付时间</th><th>状态</th><th>报销时间</th><th>批次</th><th>管理员备注</th><th>操作</th></tr></thead>
+      <thead><tr><th>员工</th><th>金额</th><th>用途分类</th><th>用途说明</th><th>支付时间</th><th>状态</th><th>报销时间</th><th>批次</th><th>OA编号</th><th>管理员备注</th><th>操作</th></tr></thead>
       <tbody>
         <tr v-for="record in records" :key="record.id">
           <td>{{ record.employeeName }}</td>
@@ -128,10 +145,12 @@ onMounted(async () => {
           <td><span class="status-tag" :class="record.reimbursedAt ? 'reimbursed' : record.status.toLowerCase()">{{ statusLabel(record.status, record.reimbursedAt) }}</span></td>
           <td>{{ formatTime(record.reimbursedAt) }}</td>
           <td>{{ record.batchName ?? '—' }}</td>
+          <td><input class="remark-input" :aria-label="`OA${record.id}`" v-model="oaNumbers[record.id]" /></td>
           <td><input class="remark-input" :aria-label="`备注${record.id}`" v-model="remarks[record.id]" /></td>
           <td class="row-actions">
             <RouterLink :to="`/admin/reimbursements/${record.id}`" class="link-view">查看</RouterLink>
             <button @click="saveRemark(record.id)">保存备注</button>
+            <button @click="saveOaNumber(record.id)">保存OA</button>
             <button v-if="!record.batchId && record.status === 'SUBMITTED' && monthlyBatch" class="btn-secondary" @click="addToMonthlyBatch(record.id)">加入月度批次</button>
             <button v-if="record.status === 'SUBMITTED' && !record.batchId" class="btn-warning" @click="rejectRecord(record.id)">打回</button>
             <button v-if="record.status === 'SUBMITTED' && !record.reimbursedAt" class="btn-success" @click="markAsReimbursed(record.id)">已报销</button>

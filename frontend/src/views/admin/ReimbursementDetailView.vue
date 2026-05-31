@@ -55,6 +55,7 @@ onMounted(async () => {
           <dt>报销时间</dt><dd>{{ formatTime(record.reimbursedAt) }}</dd>
           <dt>批次</dt><dd>{{ record.batchName ?? '未分配' }}</dd>
           <dt>管理员备注</dt><dd>{{ record.adminRemark || '—' }}</dd>
+          <dt>OA编号</dt><dd>{{ record.oaNumber || '—' }}</dd>
         </dl>
       </div>
       <div class="detail-card">

@@ -37,6 +37,7 @@ public class ReimbursementRecord {
     @JoinColumn(name = "batch_id")
     private ReimbursementBatch batch;
     private String adminRemark;
+    private String oaNumber;
     private Instant createdAt;
     private Instant updatedAt;
     private Instant submittedAt;
@@ -69,6 +70,7 @@ public class ReimbursementRecord {
     public ReimbursementBatch getBatch() { return batch; }
     public void setBatch(ReimbursementBatch batch) { this.batch = batch; }
     public String getAdminRemark() { return adminRemark; }
+    public String getOaNumber() { return oaNumber; }
     public Instant getSubmittedAt() { return submittedAt; }
     public Instant getArchivedAt() { return archivedAt; }
     public Instant getReimbursedAt() { return reimbursedAt; }
@@ -103,6 +105,11 @@ public class ReimbursementRecord {
 
     public void setAdminRemark(String adminRemark) {
         this.adminRemark = adminRemark;
+        this.updatedAt = Instant.now();
+    }
+
+    public void setOaNumber(String oaNumber) {
+        this.oaNumber = oaNumber;
         this.updatedAt = Instant.now();
     }
 

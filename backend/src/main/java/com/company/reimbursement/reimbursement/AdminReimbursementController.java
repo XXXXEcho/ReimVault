@@ -30,9 +30,10 @@ public class AdminReimbursementController {
             @RequestParam(required = false) ReimbursementStatus status,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
-            @RequestParam(required = false) Boolean reimbursed
+            @RequestParam(required = false) Boolean reimbursed,
+            @RequestParam(required = false) String oaNumber
     ) {
-        return service.listAll(new ReimbursementDtos.AdminListFilter(employeeId, categoryId, status, from, to, reimbursed));
+        return service.listAll(new ReimbursementDtos.AdminListFilter(employeeId, categoryId, status, from, to, reimbursed, oaNumber));
     }
 
     @GetMapping("/{id}")
@@ -43,6 +44,11 @@ public class AdminReimbursementController {
     @PatchMapping("/{id}/remark")
     ReimbursementDtos.RecordResponse updateRemark(@PathVariable Long id, @RequestBody ReimbursementDtos.AdminRemarkRequest request) {
         return service.updateAdminRemark(id, request);
+    }
+
+    @PatchMapping("/{id}/oa-number")
+    ReimbursementDtos.RecordResponse updateOaNumber(@PathVariable Long id, @RequestBody ReimbursementDtos.OaNumberRequest request) {
+        return service.updateOaNumber(id, request);
     }
 
     @PostMapping("/{id}/reject")

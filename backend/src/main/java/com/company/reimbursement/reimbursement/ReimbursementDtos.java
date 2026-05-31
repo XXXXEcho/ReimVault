@@ -14,7 +14,10 @@ public class ReimbursementDtos {
     public record AdminRemarkRequest(String adminRemark) {
     }
 
-    public record AdminListFilter(Long employeeId, Long categoryId, ReimbursementStatus status, LocalDate from, LocalDate to, Boolean reimbursed) {
+    public record OaNumberRequest(String oaNumber) {
+    }
+
+    public record AdminListFilter(Long employeeId, Long categoryId, ReimbursementStatus status, LocalDate from, LocalDate to, Boolean reimbursed, String oaNumber) {
     }
 
     public record AttachmentResponse(Long id, AttachmentType type, String originalFilename, String contentType, long sizeBytes, Instant createdAt) {
@@ -41,6 +44,7 @@ public class ReimbursementDtos {
             Instant paymentTime,
             ReimbursementStatus status,
             String adminRemark,
+            String oaNumber,
             Instant submittedAt,
             Instant archivedAt,
             Instant reimbursedAt,
@@ -60,6 +64,7 @@ public class ReimbursementDtos {
                     record.getPaymentTime(),
                     record.getStatus(),
                     record.getAdminRemark(),
+                    record.getOaNumber(),
                     record.getSubmittedAt(),
                     record.getArchivedAt(),
                     record.getReimbursedAt(),
