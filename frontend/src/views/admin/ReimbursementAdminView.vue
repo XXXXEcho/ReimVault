@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue';
 import { RouterLink } from 'vue-router';
-import { listAdminReimbursements, rejectReimbursement, updateAdminRemark, markReimbursed, type ReimbursementRecord, type ReimbursementStatus } from '../../api/reimbursements';
+import { listAdminReimbursements, rejectReimbursement, updateAdminRemark, markReimbursed, type ReimbursementRecord, type ReimbursementStatus, statusLabel, formatTime } from '../../api/reimbursements';
 import { addBatchItem, ensureMonthlyBatch, type Batch } from '../../api/batches';
 import { useAuthStore } from '../../stores/auth';
 
@@ -99,7 +99,7 @@ onMounted(async () => {
     <form class="inline-form" @submit.prevent="load">
       <input aria-label="员工ID" v-model="filters.employeeId" type="number" min="1" placeholder="员工ID" />
       <input aria-label="分类ID" v-model="filters.categoryId" type="number" min="1" placeholder="分类ID" />
-      <select aria-label="状态" v-model="filters.status"><option value="SUBMITTED">已提交</option><option value="ARCHIVED">已归档</option><option value="DRAFT">草稿</option></select>
+      <select aria-label="状态" v-model="filters.status"><option value="SUBMITTED">已提交未报销</option><option value="ARCHIVED">已报销</option><option value="DRAFT">未提交</option></select>
       <input aria-label="开始日期" v-model="filters.from" type="date" />
       <input aria-label="结束日期" v-model="filters.to" type="date" />
       <button type="button" :class="{ active: filters.reimbursed }" @click="filters.reimbursed = !filters.reimbursed; load()">{{ filters.reimbursed ? '显示全部' : '只看已报销' }}</button>
@@ -113,9 +113,9 @@ onMounted(async () => {
           <td>{{ record.amount }}</td>
           <td>{{ record.categoryName }}</td>
           <td>{{ record.purpose }}</td>
-          <td>{{ record.paymentTime }}</td>
-          <td><span class="status-tag" :class="record.status.toLowerCase()">{{ record.status }}</span></td>
-          <td>{{ record.reimbursedAt ?? '—' }}</td>
+          <td>{{ formatTime(record.paymentTime) }}</td>
+          <td><span class="status-tag" :class="record.status.toLowerCase()">{{ statusLabel(record.status) }}</span></td>
+          <td>{{ formatTime(record.reimbursedAt) }}</td>
           <td>{{ record.batchName ?? '—' }}</td>
           <td><input class="remark-input" :aria-label="`备注${record.id}`" v-model="remarks[record.id]" /></td>
           <td class="row-actions">

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue';
 import { addBatchItem, archiveBatch, createBatch, exportBatchAttachments, exportBatchExcel, getBatch, listBatches, removeBatchItem, type Batch } from '../../api/batches';
+import { formatTime } from '../../api/reimbursements';
 
 const batches = ref<Batch[]>([]);
 const current = ref<Batch | null>(null);
@@ -93,7 +94,7 @@ onMounted(loadBatches);
     <h2 class="section-title">批次列表</h2>
     <table>
       <thead><tr><th>ID</th><th>名称</th><th>说明</th><th>归档时间</th><th>操作</th></tr></thead>
-      <tbody><tr v-for="batch in batches" :key="batch.id"><td>{{ batch.id }}</td><td>{{ batch.name }}</td><td>{{ batch.description }}</td><td>{{ batch.archivedAt ?? '—' }}</td><td><button @click="loadBatch(batch.id)">查看</button></td></tr></tbody>
+      <tbody><tr v-for="batch in batches" :key="batch.id"><td>{{ batch.id }}</td><td>{{ batch.name }}</td><td>{{ batch.description }}</td><td>{{ formatTime(batch.archivedAt) }}</td><td><button @click="loadBatch(batch.id)">查看</button></td></tr></tbody>
     </table>
     <template v-if="current">
       <h2 class="section-title">批次明细 — {{ current.name }}</h2>

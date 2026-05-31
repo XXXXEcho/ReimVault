@@ -2,6 +2,15 @@ import http from './http';
 
 export type ReimbursementStatus = 'DRAFT' | 'SUBMITTED' | 'ARCHIVED';
 
+export function statusLabel(status: ReimbursementStatus) {
+  return { DRAFT: '未提交', SUBMITTED: '已提交未报销', ARCHIVED: '已报销' }[status];
+}
+
+export function formatTime(iso: string | null | undefined) {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+}
+
 export interface ReimbursementInput {
   amount: number;
   categoryId: number;

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { getAdminReimbursement, type ReimbursementRecord, type ReimbursementAttachment, type AttachmentType } from '../../api/reimbursements';
+import { getAdminReimbursement, type ReimbursementRecord, type ReimbursementAttachment, type AttachmentType, statusLabel, formatTime } from '../../api/reimbursements';
 
 const route = useRoute();
 const router = useRouter();
@@ -47,12 +47,12 @@ onMounted(async () => {
         <dl>
           <dt>员工</dt><dd>{{ record.employeeName }}</dd>
           <dt>金额</dt><dd>{{ record.amount }}</dd>
+          <dt>状态</dt><dd><span class="status-tag" :class="record.status.toLowerCase()">{{ statusLabel(record.status) }}</span></dd>
           <dt>用途分类</dt><dd>{{ record.categoryName }}</dd>
           <dt>用途说明</dt><dd>{{ record.purpose }}</dd>
-          <dt>支付时间</dt><dd>{{ record.paymentTime }}</dd>
-          <dt>状态</dt><dd><span class="status-tag" :class="record.status.toLowerCase()">{{ record.status }}</span></dd>
-          <dt>提交时间</dt><dd>{{ record.submittedAt ?? '—' }}</dd>
-          <dt>报销时间</dt><dd>{{ record.reimbursedAt ?? '—' }}</dd>
+          <dt>支付时间</dt><dd>{{ formatTime(record.paymentTime) }}</dd>
+          <dt>提交时间</dt><dd>{{ formatTime(record.submittedAt) }}</dd>
+          <dt>报销时间</dt><dd>{{ formatTime(record.reimbursedAt) }}</dd>
           <dt>批次</dt><dd>{{ record.batchName ?? '未分配' }}</dd>
           <dt>管理员备注</dt><dd>{{ record.adminRemark || '—' }}</dd>
         </dl>

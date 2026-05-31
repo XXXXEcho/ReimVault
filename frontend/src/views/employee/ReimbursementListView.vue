@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue';
 import { RouterLink } from 'vue-router';
-import { deleteReimbursement, listReimbursements, withdrawReimbursement, type ReimbursementRecord } from '../../api/reimbursements';
+import { deleteReimbursement, listReimbursements, withdrawReimbursement, type ReimbursementRecord, statusLabel, formatTime } from '../../api/reimbursements';
 
 const records = ref<ReimbursementRecord[]>([]);
 
@@ -35,9 +35,9 @@ onMounted(load);
           <td>{{ record.amount }}</td>
           <td>{{ record.categoryName }}</td>
           <td>{{ record.purpose }}</td>
-          <td>{{ record.paymentTime }}</td>
-          <td><span class="status-tag" :class="record.status.toLowerCase()">{{ record.status }}</span></td>
-          <td>{{ record.submittedAt }}</td>
+          <td>{{ formatTime(record.paymentTime) }}</td>
+          <td><span class="status-tag" :class="record.status.toLowerCase()">{{ statusLabel(record.status) }}</span></td>
+          <td>{{ formatTime(record.submittedAt) }}</td>
           <td class="row-actions">
             <RouterLink v-if="record.status === 'DRAFT'" :to="`/reimbursements/${record.id}`">编辑</RouterLink>
             <RouterLink v-else :to="`/reimbursements/${record.id}`" class="link-view">查看</RouterLink>
