@@ -8,3 +8,7 @@ frontend/*.tsbuildinfo
 storage/
 *.log
 .env
+findings.md
+progress.md
+task_plan.md
+tasks/
