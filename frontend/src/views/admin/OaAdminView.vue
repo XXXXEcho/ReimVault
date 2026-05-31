@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue';
-import { listAdminReimbursements, updateOaNumber, type ReimbursementRecord, type ReimbursementStatus, formatTime } from '../../api/reimbursements';
+import { listOaNumbers, createOaNumber, updateOaNumber, deleteOaNumber, type OaNumber } from '../../api/oa';
 
-const records = ref<ReimbursementRecord[]>([]);
-const oaNumbers = reactive<Record<number, string>>({});
+const items = ref<OaNumber[]>([]);
+const newNumber = ref('');
+const editing = reactive<Record<number, string>>({});
+const editingId = ref<number | null>(null);
 const notice = ref<{ type: 'success' | 'error'; text: string } | null>(null);
-const statusFilter = ref<ReimbursementStatus | ''>('');
-const oaFilter = ref<'' | 'yes' | 'no'>('');
 
 function errorMessage(err: unknown) {
   if (typeof err === 'object' && err && 'response' in err) {
@@ -17,31 +17,45 @@ function errorMessage(err: unknown) {
 }
 
 async function load() {
-  const response = await listAdminReimbursements({
-    status: (statusFilter.value || undefined) as ReimbursementStatus | undefined
-  });
-  let list = response.data;
-  if (oaFilter.value === 'yes') list = list.filter(r => r.oaNumber);
-  else if (oaFilter.value === 'no') list = list.filter(r => !r.oaNumber);
-  records.value = list;
-  for (const r of records.value) oaNumbers[r.id] = r.oaNumber ?? '';
+  const response = await listOaNumbers();
+  items.value = response.data;
 }
 
-async function save(id: number) {
+async function add() {
+  if (!newNumber.value.trim()) return;
   notice.value = null;
   try {
-    await updateOaNumber(id, oaNumbers[id] ?? '');
-    notice.value = { type: 'success', text: '保存成功' };
+    await createOaNumber(newNumber.value.trim());
+    newNumber.value = '';
+    notice.value = { type: 'success', text: '新增成功' };
     await load();
   } catch (err) {
     notice.value = { type: 'error', text: errorMessage(err) };
   }
 }
 
-async function clear(id: number) {
+function startEdit(item: OaNumber) {
+  editingId.value = item.id;
+  editing[item.id] = item.number;
+}
+
+async function saveEdit(id: number) {
   notice.value = null;
   try {
-    await updateOaNumber(id, '');
+    await updateOaNumber(id, editing[id]);
+    editingId.value = null;
+    notice.value = { type: 'success', text: '修改成功' };
+    await load();
+  } catch (err) {
+    notice.value = { type: 'error', text: errorMessage(err) };
+  }
+}
+
+async function remove(id: number) {
+  if (!confirm('确定删除此OA编号？')) return;
+  notice.value = null;
+  try {
+    await deleteOaNumber(id);
     notice.value = { type: 'success', text: '已删除' };
     await load();
   } catch (err) {
@@ -56,39 +70,35 @@ onMounted(load);
   <section>
     <h1>OA编号管理</h1>
     <p v-if="notice" :class="['notice', notice.type]" :role="notice.type === 'error' ? 'alert' : 'status'">{{ notice.text }}</p>
-    <form class="inline-form" @submit.prevent="load">
-      <select aria-label="状态" v-model="statusFilter">
-        <option value="">全部状态</option>
-        <option value="SUBMITTED">已提交未报销</option>
-        <option value="ARCHIVED">已报销</option>
-      </select>
-      <select aria-label="OA编号" v-model="oaFilter">
-        <option value="">全部</option>
-        <option value="no">未分配</option>
-        <option value="yes">已分配</option>
-      </select>
-      <button type="submit">查询</button>
+    <form class="inline-form" @submit.prevent="add">
+      <input aria-label="OA编号" v-model="newNumber" placeholder="输入新OA编号" />
+      <button type="submit">新增</button>
     </form>
-    <div class="table-scroll">
-      <table>
-        <thead><tr><th>ID</th><th>员工</th><th>金额</th><th>用途</th><th>支付时间</th><th>OA编号</th><th>操作</th></tr></thead>
-        <tbody>
-          <tr v-for="r in records" :key="r.id">
-            <td>{{ r.id }}</td>
-            <td>{{ r.employeeName }}</td>
-            <td>{{ r.amount }}</td>
-            <td>{{ r.purpose }}</td>
-            <td>{{ formatTime(r.paymentTime) }}</td>
-            <td><input class="oa-input" :aria-label="`OA${r.id}`" v-model="oaNumbers[r.id]" placeholder="输入OA编号" /></td>
-            <td class="row-actions">
-              <button @click="save(r.id)">保存</button>
-              <button v-if="r.oaNumber" class="btn-danger" @click="clear(r.id)">删除</button>
-            </td>
-          </tr>
-          <tr v-if="!records.length"><td colspan="7" class="empty">无记录</td></tr>
-        </tbody>
-      </table>
-    </div>
+    <table>
+      <thead><tr><th>ID</th><th>OA编号</th><th>操作</th></tr></thead>
+      <tbody>
+        <tr v-for="item in items" :key="item.id">
+          <td>{{ item.id }}</td>
+          <td>
+            <template v-if="editingId === item.id">
+              <input class="edit-input" v-model="editing[item.id]" @keyup.enter="saveEdit(item.id)" />
+            </template>
+            <template v-else>{{ item.number }}</template>
+          </td>
+          <td class="row-actions">
+            <template v-if="editingId === item.id">
+              <button @click="saveEdit(item.id)">保存</button>
+              <button @click="editingId = null">取消</button>
+            </template>
+            <template v-else>
+              <button @click="startEdit(item)">编辑</button>
+              <button class="btn-danger" @click="remove(item.id)">删除</button>
+            </template>
+          </td>
+        </tr>
+        <tr v-if="!items.length"><td colspan="3" class="empty">暂无OA编号</td></tr>
+      </tbody>
+    </table>
   </section>
 </template>
 
@@ -97,8 +107,7 @@ onMounted(load);
 .notice { margin: 0 0 14px; padding: 10px 14px; border-radius: 10px; font-size: 13px; font-weight: 700; }
 .notice.success { background: #dcfce7; color: #166534; }
 .notice.error { background: #fee2e2; color: #991b1b; }
-.table-scroll { overflow-x: auto; }
-.oa-input { width: 100%; min-width: 140px; }
+.edit-input { min-width: 160px; }
 .row-actions { display: flex; gap: 6px; align-items: center; }
 .btn-danger { min-height: 34px; padding: 0 12px; border: 1px solid #fca5a5; border-radius: 8px; background: #fff; color: #dc2626; font-size: 12px; font-weight: 700; cursor: pointer; transition: background 160ms ease, color 160ms ease; }
 .btn-danger:hover { background: #dc2626; color: #fff; }
