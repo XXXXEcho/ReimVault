@@ -9,7 +9,7 @@ const router = useRouter();
 const navigationItems = [
   { to: '/reimbursements', label: '我的报销' },
   { to: '/admin/reimbursements', label: '报销管理', roles: ['ADMIN', 'SPECIALIST'] as const },
-  { to: '/admin/oa', label: 'OA编号管理', roles: ['ADMIN', 'SPECIALIST'] as const },
+  { to: '/admin/oa', label: '经费编码', roles: ['ADMIN', 'SPECIALIST'] as const },
   { to: '/admin/batches', label: '批次管理', roles: ['ADMIN', 'SPECIALIST'] as const },
   { to: '/admin/users', label: '用户管理', roles: ['ADMIN'] as const },
   { to: '/admin/categories', label: '分类管理', roles: ['ADMIN', 'SPECIALIST'] as const }

@@ -52,7 +52,7 @@ async function saveEdit(id: number) {
 }
 
 async function remove(id: number) {
-  if (!confirm('确定删除此OA编号？')) return;
+  if (!confirm('确定删除此经费编码？')) return;
   notice.value = null;
   try {
     await deleteOaNumber(id);
@@ -68,14 +68,14 @@ onMounted(load);
 
 <template>
   <section>
-    <h1>OA编号管理</h1>
+    <h1>经费编码</h1>
     <p v-if="notice" :class="['notice', notice.type]" :role="notice.type === 'error' ? 'alert' : 'status'">{{ notice.text }}</p>
     <form class="inline-form" @submit.prevent="add">
-      <input aria-label="OA编号" v-model="newNumber" placeholder="输入新OA编号" />
+      <input aria-label="OA编号" v-model="newNumber" placeholder="输入新经费编码" />
       <button type="submit">新增</button>
     </form>
     <table>
-      <thead><tr><th>ID</th><th>OA编号</th><th>操作</th></tr></thead>
+      <thead><tr><th>ID</th><th>经费编码</th><th>操作</th></tr></thead>
       <tbody>
         <tr v-for="item in items" :key="item.id">
           <td>{{ item.id }}</td>
@@ -96,7 +96,7 @@ onMounted(load);
             </template>
           </td>
         </tr>
-        <tr v-if="!items.length"><td colspan="3" class="empty">暂无OA编号</td></tr>
+        <tr v-if="!items.length"><td colspan="3" class="empty">暂无经费编码</td></tr>
       </tbody>
     </table>
   </section>
