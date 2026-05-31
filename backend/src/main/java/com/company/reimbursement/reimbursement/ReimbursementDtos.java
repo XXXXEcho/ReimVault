@@ -14,7 +14,7 @@ public class ReimbursementDtos {
     public record AdminRemarkRequest(String adminRemark) {
     }
 
-    public record AdminListFilter(Long employeeId, Long categoryId, ReimbursementStatus status, LocalDate from, LocalDate to) {
+    public record AdminListFilter(Long employeeId, Long categoryId, ReimbursementStatus status, LocalDate from, LocalDate to, Boolean reimbursed) {
     }
 
     public record AttachmentResponse(Long id, AttachmentType type, String originalFilename, String contentType, long sizeBytes, Instant createdAt) {
@@ -43,6 +43,7 @@ public class ReimbursementDtos {
             String adminRemark,
             Instant submittedAt,
             Instant archivedAt,
+            Instant reimbursedAt,
             Long batchId,
             String batchName,
             List<AttachmentResponse> attachments
@@ -61,6 +62,7 @@ public class ReimbursementDtos {
                     record.getAdminRemark(),
                     record.getSubmittedAt(),
                     record.getArchivedAt(),
+                    record.getReimbursedAt(),
                     record.getBatch() != null ? record.getBatch().getId() : null,
                     record.getBatch() != null ? record.getBatch().getName() : null,
                     attachments.stream().map(AttachmentResponse::from).toList()

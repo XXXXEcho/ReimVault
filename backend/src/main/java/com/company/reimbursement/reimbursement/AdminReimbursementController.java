@@ -29,9 +29,10 @@ public class AdminReimbursementController {
             @RequestParam(required = false) Long categoryId,
             @RequestParam(required = false) ReimbursementStatus status,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+            @RequestParam(required = false) Boolean reimbursed
     ) {
-        return service.listAll(new ReimbursementDtos.AdminListFilter(employeeId, categoryId, status, from, to));
+        return service.listAll(new ReimbursementDtos.AdminListFilter(employeeId, categoryId, status, from, to, reimbursed));
     }
 
     @GetMapping("/{id}")
@@ -47,5 +48,10 @@ public class AdminReimbursementController {
     @PostMapping("/{id}/reject")
     ReimbursementDtos.RecordResponse reject(@PathVariable Long id) {
         return service.reject(id);
+    }
+
+    @PostMapping("/{id}/reimburse")
+    ReimbursementDtos.RecordResponse reimburse(@PathVariable Long id) {
+        return service.markReimbursed(id);
     }
 }

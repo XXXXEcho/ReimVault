@@ -52,6 +52,7 @@ onMounted(async () => {
           <dt>支付时间</dt><dd>{{ record.paymentTime }}</dd>
           <dt>状态</dt><dd><span class="status-tag" :class="record.status.toLowerCase()">{{ record.status }}</span></dd>
           <dt>提交时间</dt><dd>{{ record.submittedAt ?? '—' }}</dd>
+          <dt>报销时间</dt><dd>{{ record.reimbursedAt ?? '—' }}</dd>
           <dt>批次</dt><dd>{{ record.batchName ?? '未分配' }}</dd>
           <dt>管理员备注</dt><dd>{{ record.adminRemark || '—' }}</dd>
         </dl>

@@ -56,9 +56,9 @@ class ExportServiceTest {
     @BeforeEach
     void setUp() {
         batchItems.deleteAll();
-        batches.deleteAll();
         attachments.deleteAll();
         records.deleteAll();
+        batches.deleteAll();
         categories.deleteAll();
         users.deleteAll();
         User admin = users.save(User.create("admin", "管理员", "财务部", passwordEncoder.encode("secret123"), UserRole.ADMIN));

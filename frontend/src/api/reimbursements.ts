@@ -27,6 +27,7 @@ export interface ReimbursementRecord extends ReimbursementInput {
   adminRemark: string;
   submittedAt: string | null;
   archivedAt: string | null;
+  reimbursedAt: string | null;
   batchId: number | null;
   batchName: string | null;
   attachments?: ReimbursementAttachment[];
@@ -78,6 +79,7 @@ export interface AdminReimbursementFilters {
   status?: ReimbursementStatus;
   from?: string;
   to?: string;
+  reimbursed?: boolean;
 }
 
 export function listAdminReimbursements(params: AdminReimbursementFilters = { status: 'SUBMITTED' }) {
@@ -94,4 +96,8 @@ export function updateAdminRemark(id: number, adminRemark: string) {
 
 export function rejectReimbursement(id: number) {
   return http.post<ReimbursementRecord>(`/admin/reimbursements/${id}/reject`);
+}
+
+export function markReimbursed(id: number) {
+  return http.post<ReimbursementRecord>(`/admin/reimbursements/${id}/reimburse`);
 }

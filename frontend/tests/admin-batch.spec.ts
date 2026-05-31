@@ -1,11 +1,13 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { mount } from '@vue/test-utils';
+import { createPinia, setActivePinia } from 'pinia';
 import UserAdminView from '../src/views/admin/UserAdminView.vue';
 import CategoryAdminView from '../src/views/admin/CategoryAdminView.vue';
 import ReimbursementAdminView from '../src/views/admin/ReimbursementAdminView.vue';
 import BatchAdminView from '../src/views/admin/BatchAdminView.vue';
 import http from '../src/api/http';
+import { useAuthStore } from '../src/stores/auth';
 
 vi.mock('../src/api/http', () => ({
   default: {
@@ -18,6 +20,9 @@ vi.mock('../src/api/http', () => ({
 
 describe('admin views', () => {
   beforeEach(() => {
+    setActivePinia(createPinia());
+    const auth = useAuthStore();
+    auth.user = { id: 1, username: 'admin', displayName: '管理员', department: '管理部', role: 'ADMIN' };
     vi.clearAllMocks();
     vi.mocked(http.get).mockResolvedValue({ data: [] });
   });
@@ -186,7 +191,7 @@ describe('admin views', () => {
     await wrapper.find('[aria-label="状态"]').setValue('ARCHIVED');
     await wrapper.find('[aria-label="开始日期"]').setValue('2026-05-01');
     await wrapper.find('[aria-label="结束日期"]').setValue('2026-05-31');
-    await wrapper.find('form.filters').trigger('submit');
+    await wrapper.find('form.inline-form').trigger('submit');
 
     expect(http.get).toHaveBeenCalledWith('/admin/reimbursements', {
       params: {
@@ -194,7 +199,8 @@ describe('admin views', () => {
         categoryId: 7,
         status: 'ARCHIVED',
         from: '2026-05-01',
-        to: '2026-05-31'
+        to: '2026-05-31',
+        reimbursed: undefined
       }
     });
   });
@@ -236,6 +242,7 @@ describe('admin views', () => {
   });
 
   it('archives the loaded batch through the archive endpoint', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
     vi.mocked(http.get).mockImplementation((url: string) => {
       if (url === '/admin/batches/5') return Promise.resolve({ data: { id: 5, name: '五月批次', items: [] } });
       return Promise.resolve({ data: [] });

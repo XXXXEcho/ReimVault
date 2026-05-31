@@ -41,6 +41,7 @@ public class ReimbursementRecord {
     private Instant updatedAt;
     private Instant submittedAt;
     private Instant archivedAt;
+    private Instant reimbursedAt;
 
     protected ReimbursementRecord() {
     }
@@ -70,6 +71,7 @@ public class ReimbursementRecord {
     public String getAdminRemark() { return adminRemark; }
     public Instant getSubmittedAt() { return submittedAt; }
     public Instant getArchivedAt() { return archivedAt; }
+    public Instant getReimbursedAt() { return reimbursedAt; }
 
     public void updateDraft(BigDecimal amount, ExpenseCategory category, String purpose, Instant paymentTime) {
         ensureDraft();
@@ -114,6 +116,14 @@ public class ReimbursementRecord {
         this.status = ReimbursementStatus.DRAFT;
         this.submittedAt = null;
         this.updatedAt = Instant.now();
+    }
+
+    public void markReimbursed() {
+        if (status != ReimbursementStatus.SUBMITTED) {
+            throw new IllegalStateException("只能标记已提交记录为已报销");
+        }
+        this.reimbursedAt = Instant.now();
+        this.updatedAt = this.reimbursedAt;
     }
 
     public void ensureDraft() {

@@ -1,14 +1,17 @@
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue';
+import { computed, onMounted, reactive, ref } from 'vue';
 import { RouterLink } from 'vue-router';
-import { listAdminReimbursements, rejectReimbursement, updateAdminRemark, type ReimbursementRecord, type ReimbursementStatus } from '../../api/reimbursements';
+import { listAdminReimbursements, rejectReimbursement, updateAdminRemark, markReimbursed, type ReimbursementRecord, type ReimbursementStatus } from '../../api/reimbursements';
 import { addBatchItem, ensureMonthlyBatch, type Batch } from '../../api/batches';
+import { useAuthStore } from '../../stores/auth';
 
 const records = ref<ReimbursementRecord[]>([]);
-const filters = reactive({ employeeId: '', categoryId: '', status: 'SUBMITTED', from: '', to: '' });
+const filters = reactive({ employeeId: '', categoryId: '', status: 'SUBMITTED', from: '', to: '', reimbursed: false });
 const remarks = reactive<Record<number, string>>({});
 const monthlyBatch = ref<Batch | null>(null);
 const notice = ref<{ type: 'success' | 'error'; text: string } | null>(null);
+const auth = useAuthStore();
+const isAdmin = computed(() => auth.user?.role === 'ADMIN');
 
 function filterParams() {
   return {
@@ -16,7 +19,8 @@ function filterParams() {
     categoryId: filters.categoryId ? Number(filters.categoryId) : undefined,
     status: (filters.status || undefined) as ReimbursementStatus | undefined,
     from: filters.from || undefined,
-    to: filters.to || undefined
+    to: filters.to || undefined,
+    reimbursed: filters.reimbursed || undefined
   };
 }
 
@@ -72,6 +76,17 @@ async function rejectRecord(id: number) {
   }
 }
 
+async function markAsReimbursed(id: number) {
+  notice.value = null;
+  try {
+    await markReimbursed(id);
+    notice.value = { type: 'success', text: '已标记为报销完成' };
+    await load();
+  } catch (err) {
+    notice.value = { type: 'error', text: errorMessage(err) };
+  }
+}
+
 onMounted(async () => {
   await Promise.all([load(), initMonthlyBatch()]);
 });
@@ -87,10 +102,11 @@ onMounted(async () => {
       <select aria-label="状态" v-model="filters.status"><option value="SUBMITTED">已提交</option><option value="ARCHIVED">已归档</option><option value="DRAFT">草稿</option></select>
       <input aria-label="开始日期" v-model="filters.from" type="date" />
       <input aria-label="结束日期" v-model="filters.to" type="date" />
+      <button type="button" :class="{ active: filters.reimbursed }" @click="filters.reimbursed = !filters.reimbursed; load()">{{ filters.reimbursed ? '显示全部' : '只看已报销' }}</button>
       <button type="submit">筛选</button>
     </form>
     <table>
-      <thead><tr><th>员工</th><th>金额</th><th>用途分类</th><th>用途说明</th><th>支付时间</th><th>状态</th><th>批次</th><th>管理员备注</th><th>操作</th></tr></thead>
+      <thead><tr><th>员工</th><th>金额</th><th>用途分类</th><th>用途说明</th><th>支付时间</th><th>状态</th><th>报销时间</th><th>批次</th><th>管理员备注</th><th>操作</th></tr></thead>
       <tbody>
         <tr v-for="record in records" :key="record.id">
           <td>{{ record.employeeName }}</td>
@@ -99,6 +115,7 @@ onMounted(async () => {
           <td>{{ record.purpose }}</td>
           <td>{{ record.paymentTime }}</td>
           <td><span class="status-tag" :class="record.status.toLowerCase()">{{ record.status }}</span></td>
+          <td>{{ record.reimbursedAt ?? '—' }}</td>
           <td>{{ record.batchName ?? '—' }}</td>
           <td><input class="remark-input" :aria-label="`备注${record.id}`" v-model="remarks[record.id]" /></td>
           <td class="row-actions">
@@ -106,6 +123,7 @@ onMounted(async () => {
             <button @click="saveRemark(record.id)">保存备注</button>
             <button v-if="!record.batchId && record.status === 'SUBMITTED' && monthlyBatch" class="btn-secondary" @click="addToMonthlyBatch(record.id)">加入月度批次</button>
             <button v-if="record.status === 'SUBMITTED' && !record.batchId" class="btn-warning" @click="rejectRecord(record.id)">打回</button>
+            <button v-if="record.status === 'SUBMITTED' && !record.reimbursedAt" class="btn-success" @click="markAsReimbursed(record.id)">已报销</button>
           </td>
         </tr>
       </tbody>
@@ -130,4 +148,6 @@ onMounted(async () => {
 .link-view:hover { background: #2563eb; color: #fff; }
 .btn-warning { min-height: 34px; padding: 0 12px; border: 1px solid #fcd34d; border-radius: 8px; background: #fff; color: #b45309; font-size: 12px; font-weight: 700; cursor: pointer; transition: background 160ms ease, color 160ms ease; }
 .btn-warning:hover { background: #b45309; color: #fff; }
+.btn-success { min-height: 34px; padding: 0 12px; border: 1px solid #86efac; border-radius: 8px; background: #fff; color: #16a34a; font-size: 12px; font-weight: 700; cursor: pointer; transition: background 160ms ease, color 160ms ease; }
+.btn-success:hover { background: #16a34a; color: #fff; }
 </style>

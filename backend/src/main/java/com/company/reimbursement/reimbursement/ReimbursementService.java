@@ -85,6 +85,13 @@ public class ReimbursementService {
         records.delete(record);
     }
 
+    @Transactional
+    public ReimbursementDtos.RecordResponse markReimbursed(Long id) {
+        ReimbursementRecord record = records.findById(id).orElseThrow(() -> new EntityNotFoundException("报销记录不存在"));
+        record.markReimbursed();
+        return response(record);
+    }
+
     @Transactional(readOnly = true)
     public List<ReimbursementDtos.RecordResponse> listAll(ReimbursementDtos.AdminListFilter filter) {
         return records.findAll(adminFilter(filter)).stream()
@@ -110,6 +117,10 @@ public class ReimbursementService {
             if (filter.status() != null) predicates.add(cb.equal(root.get("status"), filter.status()));
             if (filter.from() != null) predicates.add(cb.greaterThanOrEqualTo(root.get("paymentTime"), filter.from().atStartOfDay().toInstant(ZoneOffset.UTC)));
             if (filter.to() != null) predicates.add(cb.lessThan(root.get("paymentTime"), filter.to().plusDays(1).atStartOfDay().toInstant(ZoneOffset.UTC)));
+            if (filter.reimbursed() != null) {
+                if (filter.reimbursed()) predicates.add(cb.isNotNull(root.get("reimbursedAt")));
+                else predicates.add(cb.isNull(root.get("reimbursedAt")));
+            }
             return cb.and(predicates.toArray(Predicate[]::new));
         };
     }

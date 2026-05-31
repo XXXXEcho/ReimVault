@@ -29,4 +29,9 @@ public class GlobalExceptionHandler {
     ResponseEntity<ApiError> notFound(EntityNotFoundException ex) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ApiError.of("NOT_FOUND", ex.getMessage()));
     }
+
+    @ExceptionHandler(IllegalStateException.class)
+    ResponseEntity<ApiError> conflict(IllegalStateException ex) {
+        return ResponseEntity.badRequest().body(ApiError.of("BAD_REQUEST", ex.getMessage()));
+    }
 }
