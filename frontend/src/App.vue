@@ -1,18 +1,20 @@
 <script setup lang="ts">
+import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import AppBrand from './components/AppBrand.vue';
 import { useAuthStore } from './stores/auth';
 
 const auth = useAuthStore();
 const router = useRouter();
+const collapsed = ref(true);
 
 const navigationItems = [
-  { to: '/reimbursements', label: '我的报销' },
-  { to: '/admin/reimbursements', label: '报销管理', roles: ['ADMIN', 'SPECIALIST'] as const },
-  { to: '/admin/oa', label: '经费编码', roles: ['ADMIN', 'SPECIALIST'] as const },
-  { to: '/admin/batches', label: '批次管理', roles: ['ADMIN', 'SPECIALIST'] as const },
-  { to: '/admin/users', label: '用户管理', roles: ['ADMIN'] as const },
-  { to: '/admin/categories', label: '分类管理', roles: ['ADMIN', 'SPECIALIST'] as const }
+  { to: '/reimbursements', label: '我的报销', icon: '报销' },
+  { to: '/admin/reimbursements', label: '报销管理', icon: '管理', roles: ['ADMIN', 'SPECIALIST'] as const },
+  { to: '/admin/oa', label: '经费编码', icon: '经费', roles: ['ADMIN', 'SPECIALIST'] as const },
+  { to: '/admin/batches', label: '批次管理', icon: '批次', roles: ['ADMIN', 'SPECIALIST'] as const },
+  { to: '/admin/users', label: '用户管理', icon: '用户', roles: ['ADMIN'] as const },
+  { to: '/admin/categories', label: '分类管理', icon: '分类', roles: ['ADMIN', 'SPECIALIST'] as const }
 ];
 
 function canShow(item: { roles?: readonly string[] }) {
@@ -31,17 +33,23 @@ async function logout() {
     <RouterView />
   </div>
 
-  <div v-else class="workspace-shell">
+  <div v-else class="workspace-shell" :class="{ collapsed }">
     <aside class="workspace-sidebar" aria-label="主导航">
       <AppBrand class="sidebar-brand" />
+      <span v-if="collapsed" class="brand-mark-mini" title="ReimVault">RV</span>
 
       <nav class="sidebar-nav">
         <template v-for="item in navigationItems" :key="item.to">
-          <RouterLink v-if="canShow(item)" :to="item.to">
-            {{ item.label }}
+          <RouterLink v-if="canShow(item)" :to="item.to" :title="collapsed ? item.label : undefined">
+            <span class="nav-icon">{{ item.icon }}</span>
+            <span class="nav-label">{{ item.label }}</span>
           </RouterLink>
         </template>
       </nav>
+
+      <button type="button" class="sidebar-toggle" :aria-label="collapsed ? '展开侧边栏' : '收起侧边栏'" @click="collapsed = !collapsed">
+        <span class="toggle-icon">{{ collapsed ? '»' : '«' }}</span>
+      </button>
     </aside>
 
     <section class="workspace-main">
@@ -97,6 +105,11 @@ async function logout() {
   min-height: 100vh;
   display: grid;
   grid-template-columns: 248px minmax(0, 1fr);
+  transition: grid-template-columns 250ms ease;
+}
+
+.workspace-shell.collapsed {
+  grid-template-columns: 64px minmax(0, 1fr);
 }
 
 .workspace-sidebar {
@@ -107,31 +120,137 @@ async function logout() {
   background: #0f172a;
   color: #e5e7eb;
   box-shadow: 12px 0 28px rgba(15, 23, 42, 0.12);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.collapsed .workspace-sidebar {
+  padding: 24px 8px;
+}
+
+.sidebar-brand {
+  transition: opacity 200ms ease;
+}
+
+.collapsed .sidebar-brand {
+  display: none;
+}
+
+.brand-mark-mini {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #3b82f6, #22c55e);
+  color: #fff;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  margin: 0 auto 8px;
+}
+
+.brand-mark-mini {
+  display: none;
+}
+
+.collapsed .brand-mark-mini {
+  display: grid;
 }
 
 .sidebar-nav {
   display: grid;
-  gap: 8px;
+  gap: 6px;
   margin-top: 32px;
 }
 
 .sidebar-nav a {
   display: flex;
   align-items: center;
-  min-height: 44px;
+  min-height: 40px;
   padding: 0 14px;
-  border-radius: 12px;
+  border-radius: 10px;
   color: #cbd5e1;
   font-size: 14px;
   font-weight: 600;
   text-decoration: none;
   transition: background 180ms ease, color 180ms ease;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.collapsed .sidebar-nav a {
+  padding: 0;
+  justify-content: center;
 }
 
 .sidebar-nav a:hover,
 .sidebar-nav a.router-link-active {
   background: rgba(59, 130, 246, 0.18);
   color: #fff;
+}
+
+.nav-icon {
+  flex-shrink: 0;
+  width: 32px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.06);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: #94a3b8;
+  transition: background 180ms ease, color 180ms ease;
+}
+
+.sidebar-nav a:hover .nav-icon,
+.sidebar-nav a.router-link-active .nav-icon {
+  background: rgba(59, 130, 246, 0.25);
+  color: #93c5fd;
+}
+
+.collapsed .nav-icon {
+  width: 36px;
+  height: 28px;
+  font-size: 11px;
+}
+
+.nav-label {
+  margin-left: 10px;
+  transition: opacity 200ms ease;
+}
+
+.collapsed .nav-label {
+  opacity: 0;
+  width: 0;
+  overflow: hidden;
+  margin-left: 0;
+}
+
+.sidebar-toggle {
+  flex-shrink: 0;
+  width: 100%;
+  min-height: 36px;
+  margin-top: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  background: transparent;
+  color: #94a3b8;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 160ms ease, color 160ms ease;
+}
+
+.sidebar-toggle:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+
+.toggle-icon {
+  font-size: 16px;
+  font-weight: 800;
 }
 
 .workspace-main {
@@ -310,7 +429,8 @@ async function logout() {
 }
 
 @media (max-width: 860px) {
-  .workspace-shell {
+  .workspace-shell,
+  .workspace-shell.collapsed {
     grid-template-columns: 1fr;
   }
 

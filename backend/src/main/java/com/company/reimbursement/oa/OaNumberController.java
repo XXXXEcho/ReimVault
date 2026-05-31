@@ -8,12 +8,9 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/admin/oa-numbers")
-@PreAuthorize("hasAnyRole('ADMIN','SPECIALIST')")
 public class OaNumberController {
     private final OaNumberRepository oaNumbers;
 
@@ -21,24 +18,33 @@ public class OaNumberController {
         this.oaNumbers = oaNumbers;
     }
 
-    @GetMapping
+    @GetMapping("/api/oa-numbers")
+    List<OaNumber> listPublic() {
+        return oaNumbers.findAll();
+    }
+
+    @GetMapping("/api/admin/oa-numbers")
+    @PreAuthorize("hasAnyRole('ADMIN','SPECIALIST')")
     List<OaNumber> list() {
         return oaNumbers.findAll();
     }
 
-    @PostMapping
+    @PostMapping("/api/admin/oa-numbers")
+    @PreAuthorize("hasAnyRole('ADMIN','SPECIALIST')")
     OaNumber create(@RequestBody CreateOaRequest request) {
         return oaNumbers.save(OaNumber.create(request.number()));
     }
 
-    @PutMapping("/{id}")
+    @PutMapping("/api/admin/oa-numbers/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN','SPECIALIST')")
     OaNumber update(@PathVariable Long id, @RequestBody CreateOaRequest request) {
         OaNumber oa = oaNumbers.findById(id).orElseThrow();
         oa.setNumber(request.number());
         return oaNumbers.save(oa);
     }
 
-    @DeleteMapping("/{id}")
+    @DeleteMapping("/api/admin/oa-numbers/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN','SPECIALIST')")
     void delete(@PathVariable Long id) {
         oaNumbers.deleteById(id);
     }

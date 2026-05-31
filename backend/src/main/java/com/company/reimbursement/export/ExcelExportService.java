@@ -25,7 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class ExcelExportService {
-    private static final List<String> HEADERS = List.of("批次名称", "员工姓名", "部门", "金额", "用途分类", "用途说明", "支付时间", "支付凭证数量", "订单截图数量", "发票数量", "提交时间", "管理员备注", "附件目录路径");
+    private static final List<String> HEADERS = List.of("批次名称", "员工姓名", "部门", "金额", "用途分类", "用途说明", "经费编码", "支付时间", "支付凭证数量", "订单截图数量", "发票数量", "提交时间", "管理员备注", "附件目录路径");
 
     private final ReimbursementBatchRepository batches;
     private final ReimbursementBatchItemRepository items;
@@ -73,13 +73,14 @@ public class ExcelExportService {
         row.createCell(3).setCellValue(record.getAmount().doubleValue());
         row.createCell(4).setCellValue(record.getCategory().getName());
         row.createCell(5).setCellValue(record.getPurpose());
-        row.createCell(6).setCellValue(record.getPaymentTime().toString());
-        row.createCell(7).setCellValue(count(recordAttachments, AttachmentType.PAYMENT_VOUCHER));
-        row.createCell(8).setCellValue(count(recordAttachments, AttachmentType.ORDER_SCREENSHOT));
-        row.createCell(9).setCellValue(count(recordAttachments, AttachmentType.INVOICE));
-        row.createCell(10).setCellValue(record.getSubmittedAt() == null ? "" : record.getSubmittedAt().toString());
-        row.createCell(11).setCellValue(record.getAdminRemark() == null ? "" : record.getAdminRemark());
-        row.createCell(12).setCellValue(attachmentDirectory(record, recordAttachments, sequence));
+        row.createCell(6).setCellValue(record.getOa() != null ? record.getOa().getNumber() : "");
+        row.createCell(7).setCellValue(record.getPaymentTime().toString());
+        row.createCell(8).setCellValue(count(recordAttachments, AttachmentType.PAYMENT_VOUCHER));
+        row.createCell(9).setCellValue(count(recordAttachments, AttachmentType.ORDER_SCREENSHOT));
+        row.createCell(10).setCellValue(count(recordAttachments, AttachmentType.INVOICE));
+        row.createCell(11).setCellValue(record.getSubmittedAt() == null ? "" : record.getSubmittedAt().toString());
+        row.createCell(12).setCellValue(record.getAdminRemark() == null ? "" : record.getAdminRemark());
+        row.createCell(13).setCellValue(attachmentDirectory(record, recordAttachments, sequence));
     }
 
     private long count(List<ReimbursementAttachment> attachments, AttachmentType type) {

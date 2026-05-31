@@ -7,7 +7,7 @@ export interface OaNumber {
 }
 
 export function listOaNumbers() {
-  return http.get<OaNumber[]>('/admin/oa-numbers');
+  return http.get<OaNumber[]>('/oa-numbers');
 }
 
 export function createOaNumber(number: string) {

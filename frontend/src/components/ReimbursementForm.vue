@@ -2,14 +2,12 @@
 import { computed, onMounted, reactive, ref } from 'vue';
 import AttachmentUploader from './AttachmentUploader.vue';
 import { listCategories, type Category } from '../api/categories';
-import { listOaNumbers, type OaNumber } from '../api/oa';
 import { createReimbursement, getReimbursement, submitReimbursement, updateReimbursement, uploadAttachment, type AttachmentType, type ReimbursementAttachment, type ReimbursementRecord } from '../api/reimbursements';
 
 const props = defineProps<{ id?: number }>();
 const emit = defineEmits<{ saved: [ReimbursementRecord]; submitted: [ReimbursementRecord] }>();
 
 const categories = ref<Category[]>([]);
-const oaNumbers = ref<OaNumber[]>([]);
 const recordId = ref<number | null>(props.id ?? null);
 const recordStatus = ref<string | null>(null);
 const attachments = ref<ReimbursementAttachment[]>([]);
@@ -112,9 +110,8 @@ async function submitRecord() {
 }
 
 onMounted(async () => {
-  const [categoryResponse, oaResponse] = await Promise.all([listCategories(), listOaNumbers()]);
+  const [categoryResponse] = await Promise.all([listCategories()]);
   categories.value = categoryResponse.data;
-  oaNumbers.value = oaResponse.data;
   if (props.id) {
     const response = await getReimbursement(props.id);
     recordStatus.value = response.data.status;
@@ -138,12 +135,6 @@ onMounted(async () => {
       <select aria-label="用途分类" v-model.number="form.categoryId" required :disabled="readonly">
         <option :value="0">请选择</option>
         <option v-for="category in categories" :key="category.id" :value="category.id">{{ category.name }}</option>
-      </select>
-    </label>
-    <label>经费编码
-      <select aria-label="经费编码" v-model.number="form.oaId" :disabled="readonly">
-        <option :value="null">请选择</option>
-        <option v-for="oa in oaNumbers" :key="oa.id" :value="oa.id">{{ oa.number }}</option>
       </select>
     </label>
     <label>用途说明<input aria-label="用途说明" v-model="form.purpose" required :disabled="readonly" /></label>

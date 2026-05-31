@@ -59,7 +59,7 @@ public class AttachmentController {
     ResponseEntity<Resource> download(@PathVariable Long id, Authentication authentication) throws IOException {
         User user = findUser(authentication.getName());
         ReimbursementAttachment attachment = attachments.findById(id).orElseThrow(() -> new EntityNotFoundException("附件不存在"));
-        if (user.getRole() != UserRole.ADMIN) {
+        if (user.getRole() != UserRole.ADMIN && user.getRole() != UserRole.SPECIALIST) {
             ensureOwner(attachment.getRecord(), user);
         }
         Resource resource = storage.load(attachment.getStoragePath());

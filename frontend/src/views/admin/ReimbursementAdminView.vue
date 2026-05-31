@@ -1,12 +1,15 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue';
 import { RouterLink } from 'vue-router';
-import { listAdminReimbursements, rejectReimbursement, updateAdminRemark, markReimbursed, unreimburse, type ReimbursementRecord, type ReimbursementStatus, statusLabel, formatTime } from '../../api/reimbursements';
+import { listAdminReimbursements, rejectReimbursement, updateAdminRemark, updateOaNumber as updateOa, markReimbursed, unreimburse, type ReimbursementRecord, type ReimbursementStatus, statusLabel, formatTime } from '../../api/reimbursements';
+import { listOaNumbers, type OaNumber } from '../../api/oa';
 import { addBatchItem, ensureMonthlyBatch, type Batch } from '../../api/batches';
 
 const records = ref<ReimbursementRecord[]>([]);
+const oaNumbers = ref<OaNumber[]>([]);
 const filters = reactive({ employeeId: '', categoryId: '', status: 'SUBMITTED', from: '', to: '', reimbursed: false });
 const remarks = reactive<Record<number, string>>({});
+const oaIds = reactive<Record<number, number | null>>({});
 const monthlyBatch = ref<Batch | null>(null);
 const notice = ref<{ type: 'success' | 'error'; text: string } | null>(null);
 
@@ -32,11 +35,19 @@ function errorMessage(err: unknown) {
 async function load() {
   const response = await listAdminReimbursements(filterParams());
   records.value = response.data;
-  for (const record of records.value) remarks[record.id] = record.adminRemark ?? '';
+  for (const record of records.value) {
+    remarks[record.id] = record.adminRemark ?? '';
+    oaIds[record.id] = record.oaId ?? null;
+  }
 }
 
 async function saveRemark(id: number) {
   await updateAdminRemark(id, remarks[id] ?? '');
+  await load();
+}
+
+async function saveOaNumber(id: number) {
+  await updateOa(id, oaIds[id] ?? null);
   await load();
 }
 
@@ -96,6 +107,8 @@ async function undoReimbursed(id: number) {
 }
 
 onMounted(async () => {
+  const oaResponse = await listOaNumbers();
+  oaNumbers.value = oaResponse.data;
   await Promise.all([load(), initMonthlyBatch()]);
 });
 </script>
@@ -115,7 +128,7 @@ onMounted(async () => {
     </form>
     <div class="table-scroll">
     <table>
-      <thead><tr><th>员工</th><th>金额</th><th>用途分类</th><th>用途说明</th><th>支付时间</th><th>状态</th><th>报销时间</th><th>批次</th><th>备注</th><th>操作</th></tr></thead>
+      <thead><tr><th>员工</th><th>金额</th><th>用途分类</th><th>用途说明</th><th>支付时间</th><th>经费编码</th><th>状态</th><th>报销时间</th><th>批次</th><th>备注</th><th>操作</th></tr></thead>
       <tbody>
         <tr v-for="record in records" :key="record.id">
           <td>{{ record.employeeName }}</td>
@@ -123,6 +136,7 @@ onMounted(async () => {
           <td>{{ record.categoryName }}</td>
           <td>{{ record.purpose }}</td>
           <td>{{ formatTime(record.paymentTime) }}</td>
+          <td><select class="oa-select" :aria-label="`经费编码${record.id}`" v-model.number="oaIds[record.id]"><option :value="null">未分配</option><option v-for="oa in oaNumbers" :key="oa.id" :value="oa.id">{{ oa.number }}</option></select><button class="btn-oa-save" @click="saveOaNumber(record.id)">保存</button></td>
           <td><span class="status-tag" :class="record.reimbursedAt ? 'reimbursed' : record.status.toLowerCase()">{{ statusLabel(record.status, record.reimbursedAt) }}</span></td>
           <td>{{ formatTime(record.reimbursedAt) }}</td>
           <td>{{ record.batchName ?? '—' }}</td>
@@ -154,6 +168,9 @@ onMounted(async () => {
 .status-tag.draft { background: #fef3c7; color: #b45309; }
 .table-scroll { overflow-x: auto; }
 .remark-input { width: 100%; min-width: 120px; }
+.oa-select { min-width: 80px; }
+.btn-oa-save { margin-left: 4px; min-height: 30px; padding: 0 8px; border: 1px solid #c4b5fd; border-radius: 6px; background: #fff; color: #7c3aed; font-size: 11px; font-weight: 700; cursor: pointer; }
+.btn-oa-save:hover { background: #7c3aed; color: #fff; }
 .row-actions { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
 .btn-secondary { background: #f0f4ff !important; color: #2563eb !important; font-size: 12px !important; }
 .btn-secondary:hover { background: #2563eb !important; color: #fff !important; }
