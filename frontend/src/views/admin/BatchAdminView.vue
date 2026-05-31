@@ -1,10 +1,6 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue';
+import { onMounted, reactive, ref } from 'vue';
 import { addBatchItem, archiveBatch, createBatch, exportBatchAttachments, exportBatchExcel, getBatch, listBatches, removeBatchItem, type Batch } from '../../api/batches';
-import { useAuthStore } from '../../stores/auth';
-
-const auth = useAuthStore();
-const isAdmin = computed(() => auth.user?.role === 'ADMIN');
 
 const batches = ref<Batch[]>([]);
 const current = ref<Batch | null>(null);
@@ -90,8 +86,8 @@ onMounted(loadBatches);
       <button data-test="load-batch" type="submit">加载批次</button>
       <input aria-label="报销记录ID" v-model="recordId" type="number" placeholder="报销记录ID" />
       <button data-test="add-record" type="button" @click="addRecord">加入批次</button>
-      <button v-if="isAdmin" data-test="export-excel" type="button" class="btn-secondary" @click="exportExcel">导出 Excel</button>
-      <button v-if="isAdmin" data-test="export-attachments" type="button" class="btn-secondary" @click="exportAttachments">导出附件</button>
+      <button data-test="export-excel" type="button" class="btn-secondary" @click="exportExcel">导出 Excel</button>
+      <button data-test="export-attachments" type="button" class="btn-secondary" @click="exportAttachments">导出附件</button>
       <button data-test="archive-batch" type="button" class="btn-danger" @click="archiveCurrent">归档</button>
     </form>
     <h2 class="section-title">批次列表</h2>
