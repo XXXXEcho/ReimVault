@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
-import { uploadAttachment, type AttachmentType, type ReimbursementAttachment } from '../api/reimbursements';
+import { uploadAttachment, deleteAttachment, type AttachmentType, type ReimbursementAttachment } from '../api/reimbursements';
 
 const props = defineProps<{
   label: string;
@@ -16,6 +16,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   'update:modelValue': [File[]];
   uploaded: [ReimbursementAttachment];
+  deleted: [number];
 }>();
 
 const title = computed(() => `${props.label}${props.required ? '（必填）' : '（选填）'}`);
@@ -65,6 +66,11 @@ async function chooseFiles(event: Event) {
     input.value = '';
   }
 }
+
+async function removeAttachment(attachment: ReimbursementAttachment) {
+  await deleteAttachment(attachment.id);
+  emit('deleted', attachment.id);
+}
 </script>
 
 <template>
@@ -76,6 +82,7 @@ async function chooseFiles(event: Event) {
           <img class="adaptive-preview-image" :src="attachmentUrl(attachment.id)" :alt="attachment.originalFilename" />
         </button>
         <a v-else :href="attachmentUrl(attachment.id)" target="_blank" rel="noreferrer">{{ attachment.originalFilename }}</a>
+        <button v-if="!readonly" type="button" class="btn-remove" @click="removeAttachment(attachment)">删除</button>
       </div>
       <div v-for="preview in localPreviews" :key="preview.url" class="attachment-preview masonry-preview-card">
         <button v-if="preview.image" type="button" class="image-preview-button" @click="openLargePreview(preview.name, preview.url)">
@@ -110,6 +117,8 @@ async function chooseFiles(event: Event) {
 .large-preview-header button { min-height: 36px; padding: 0 12px; border: 0; border-radius: 8px; background: #0f172a; color: #fff; cursor: pointer; }
 .large-preview-panel > img { justify-self: center; max-width: 100%; max-height: 88vh; object-fit: contain; border-radius: 12px; }
 .large-preview-panel > a { color: #2563eb; font-weight: 700; }
+.btn-remove { margin-top: 6px; padding: 0 8px; min-height: 26px; border: 1px solid #fca5a5; border-radius: 6px; background: #fff; color: #dc2626; font-size: 11px; font-weight: 700; cursor: pointer; }
+.btn-remove:hover { background: #dc2626; color: #fff; }
 @media (max-width: 760px) { .attachment-preview-list { column-count: 2; } }
 @media (max-width: 520px) { .attachment-preview-list { column-count: 1; } }
 </style>

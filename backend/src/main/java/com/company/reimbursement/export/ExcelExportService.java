@@ -14,6 +14,8 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.math.BigDecimal;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
 import java.util.List;
 import org.apache.poi.ss.usermodel.Row;
@@ -25,7 +27,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class ExcelExportService {
-    private static final List<String> HEADERS = List.of("批次名称", "员工姓名", "部门", "金额", "用途分类", "用途说明", "经费编码", "支付时间", "支付凭证数量", "订单截图数量", "发票数量", "提交时间", "管理员备注", "附件目录路径");
+    private static final List<String> HEADERS = List.of("批次名称", "员工姓名", "部门", "金额", "用途分类", "用途说明", "经费编码", "支付时间", "支付凭证数量", "订单截图数量", "发票数量", "提交时间", "报销状态", "报销时间", "管理员备注", "附件目录路径");
+    private static final ZoneId CN = ZoneId.of("Asia/Shanghai");
+    private static final DateTimeFormatter FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm").withZone(CN);
 
     private final ReimbursementBatchRepository batches;
     private final ReimbursementBatchItemRepository items;
@@ -74,13 +78,15 @@ public class ExcelExportService {
         row.createCell(4).setCellValue(record.getCategory().getName());
         row.createCell(5).setCellValue(record.getPurpose());
         row.createCell(6).setCellValue(record.getOa() != null ? record.getOa().getNumber() : "");
-        row.createCell(7).setCellValue(record.getPaymentTime().toString());
+        row.createCell(7).setCellValue(FMT.format(record.getPaymentTime()));
         row.createCell(8).setCellValue(count(recordAttachments, AttachmentType.PAYMENT_VOUCHER));
         row.createCell(9).setCellValue(count(recordAttachments, AttachmentType.ORDER_SCREENSHOT));
         row.createCell(10).setCellValue(count(recordAttachments, AttachmentType.INVOICE));
-        row.createCell(11).setCellValue(record.getSubmittedAt() == null ? "" : record.getSubmittedAt().toString());
-        row.createCell(12).setCellValue(record.getAdminRemark() == null ? "" : record.getAdminRemark());
-        row.createCell(13).setCellValue(attachmentDirectory(record, recordAttachments, sequence));
+        row.createCell(11).setCellValue(record.getSubmittedAt() == null ? "" : FMT.format(record.getSubmittedAt()));
+        row.createCell(12).setCellValue(statusLabel(record));
+        row.createCell(13).setCellValue(record.getReimbursedAt() == null ? "" : FMT.format(record.getReimbursedAt()));
+        row.createCell(14).setCellValue(record.getAdminRemark() == null ? "" : record.getAdminRemark());
+        row.createCell(15).setCellValue(attachmentDirectory(record, recordAttachments, sequence));
     }
 
     private long count(List<ReimbursementAttachment> attachments, AttachmentType type) {
@@ -95,5 +101,14 @@ public class ExcelExportService {
 
     private String amountText(BigDecimal amount) {
         return amount.setScale(2).toPlainString();
+    }
+
+    private String statusLabel(ReimbursementRecord record) {
+        if (record.getReimbursedAt() != null) return "已报销";
+        return switch (record.getStatus()) {
+            case DRAFT -> "未提交";
+            case SUBMITTED -> "已提交未报销";
+            case ARCHIVED -> "已报销";
+        };
     }
 }

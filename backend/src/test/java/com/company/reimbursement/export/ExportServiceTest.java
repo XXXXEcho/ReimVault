@@ -108,7 +108,7 @@ class ExportServiceTest {
         try (Workbook workbook = WorkbookFactory.create(new ByteArrayInputStream(bytes))) {
             assertThat(workbook.getSheetName(0)).isEqualTo("报销清单");
             Row header = workbook.getSheetAt(0).getRow(0);
-            List<String> headers = List.of("批次名称", "员工姓名", "部门", "金额", "用途分类", "用途说明", "经费编码", "支付时间", "支付凭证数量", "订单截图数量", "发票数量", "提交时间", "管理员备注", "附件目录路径");
+            List<String> headers = List.of("批次名称", "员工姓名", "部门", "金额", "用途分类", "用途说明", "经费编码", "支付时间", "支付凭证数量", "订单截图数量", "发票数量", "提交时间", "报销状态", "报销时间", "管理员备注", "附件目录路径");
             for (int i = 0; i < headers.size(); i++) {
                 assertThat(header.getCell(i).getStringCellValue()).isEqualTo(headers.get(i));
             }
@@ -123,8 +123,10 @@ class ExportServiceTest {
             assertThat(row.getCell(8).getNumericCellValue()).isEqualTo(1);
             assertThat(row.getCell(9).getNumericCellValue()).isEqualTo(0);
             assertThat(row.getCell(10).getNumericCellValue()).isEqualTo(1);
-            assertThat(row.getCell(12).getStringCellValue()).isEqualTo("材料齐全");
-            assertThat(row.getCell(13).getStringCellValue()).contains("员工一/001-办公用品-128.00").contains("附件缺失");
+            assertThat(row.getCell(12).getStringCellValue()).isEqualTo("已提交未报销");
+            assertThat(row.getCell(13).getStringCellValue()).isEmpty();
+            assertThat(row.getCell(14).getStringCellValue()).isEqualTo("材料齐全");
+            assertThat(row.getCell(15).getStringCellValue()).contains("员工一/001-办公用品-128.00").contains("附件缺失");
         }
     }
 }

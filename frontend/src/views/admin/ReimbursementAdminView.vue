@@ -3,13 +3,15 @@ import { onMounted, reactive, ref } from 'vue';
 import { RouterLink } from 'vue-router';
 import { listAdminReimbursements, rejectReimbursement, updateAdminRemark, updateOaNumber as updateOa, markReimbursed, unreimburse, type ReimbursementRecord, type ReimbursementStatus, statusLabel, formatTime } from '../../api/reimbursements';
 import { listOaNumbers, type OaNumber } from '../../api/oa';
-import { addBatchItem, ensureMonthlyBatch, type Batch } from '../../api/batches';
+import { addBatchItem, removeBatchItem, listBatches, ensureMonthlyBatch, type Batch } from '../../api/batches';
 
 const records = ref<ReimbursementRecord[]>([]);
 const oaNumbers = ref<OaNumber[]>([]);
+const allBatches = ref<Batch[]>([]);
 const filters = reactive({ employeeId: '', categoryId: '', status: 'SUBMITTED', from: '', to: '', reimbursed: false });
 const remarks = reactive<Record<number, string>>({});
 const oaIds = reactive<Record<number, number | null>>({});
+const batchIds = reactive<Record<number, number | null>>({});
 const monthlyBatch = ref<Batch | null>(null);
 const notice = ref<{ type: 'success' | 'error'; text: string } | null>(null);
 
@@ -38,6 +40,7 @@ async function load() {
   for (const record of records.value) {
     remarks[record.id] = record.adminRemark ?? '';
     oaIds[record.id] = record.oaId ?? null;
+    batchIds[record.id] = record.batchId ?? null;
   }
 }
 
@@ -49,6 +52,25 @@ async function saveRemark(id: number) {
 async function saveOaNumber(id: number) {
   await updateOa(id, oaIds[id] ?? null);
   await load();
+}
+
+async function saveBatch(recordId: number) {
+  const newBatchId = batchIds[recordId];
+  const record = records.value.find((r) => r.id === recordId);
+  const oldBatchId = record?.batchId ?? null;
+  notice.value = null;
+  try {
+    if (oldBatchId && oldBatchId !== newBatchId) {
+      await removeBatchItem(oldBatchId, recordId);
+    }
+    if (newBatchId) {
+      await addBatchItem(newBatchId, recordId);
+    }
+    notice.value = { type: 'success', text: newBatchId ? '已分配批次' : '已移出批次' };
+    await load();
+  } catch (err) {
+    notice.value = { type: 'error', text: errorMessage(err) };
+  }
 }
 
 async function initMonthlyBatch() {
@@ -107,8 +129,9 @@ async function undoReimbursed(id: number) {
 }
 
 onMounted(async () => {
-  const oaResponse = await listOaNumbers();
+  const [oaResponse, batchResponse] = await Promise.all([listOaNumbers(), listBatches()]);
   oaNumbers.value = oaResponse.data;
+  allBatches.value = batchResponse.data;
   await Promise.all([load(), initMonthlyBatch()]);
 });
 </script>
@@ -136,15 +159,14 @@ onMounted(async () => {
           <td>{{ record.categoryName }}</td>
           <td>{{ record.purpose }}</td>
           <td>{{ formatTime(record.paymentTime) }}</td>
-          <td><select class="oa-select" :aria-label="`经费编码${record.id}`" v-model.number="oaIds[record.id]"><option :value="null">未分配</option><option v-for="oa in oaNumbers" :key="oa.id" :value="oa.id">{{ oa.number }}</option></select><button class="btn-oa-save" @click="saveOaNumber(record.id)">保存</button></td>
+          <td><select class="oa-select" :aria-label="`经费编码${record.id}`" v-model.number="oaIds[record.id]" @change="saveOaNumber(record.id)"><option :value="null">未分配</option><option v-for="oa in oaNumbers" :key="oa.id" :value="oa.id">{{ oa.number }}</option></select></td>
           <td><span class="status-tag" :class="record.reimbursedAt ? 'reimbursed' : record.status.toLowerCase()">{{ statusLabel(record.status, record.reimbursedAt) }}</span></td>
           <td>{{ formatTime(record.reimbursedAt) }}</td>
-          <td>{{ record.batchName ?? '—' }}</td>
+          <td><select class="batch-select" :aria-label="`批次${record.id}`" v-model.number="batchIds[record.id]" @change="saveBatch(record.id)"><option :value="null">未分配</option><option v-for="b in allBatches" :key="b.id" :value="b.id">{{ b.name }}</option></select></td>
           <td><input class="remark-input" :aria-label="`备注${record.id}`" v-model="remarks[record.id]" /></td>
           <td class="row-actions">
             <RouterLink :to="`/admin/reimbursements/${record.id}`" class="link-view">查看</RouterLink>
             <button @click="saveRemark(record.id)">保存备注</button>
-            <button v-if="!record.batchId && record.status === 'SUBMITTED' && monthlyBatch" class="btn-secondary" @click="addToMonthlyBatch(record.id)">加入月度批次</button>
             <button v-if="record.status === 'SUBMITTED' && !record.batchId" class="btn-warning" @click="rejectRecord(record.id)">打回</button>
             <button v-if="record.status === 'SUBMITTED' && !record.reimbursedAt" class="btn-success" @click="markAsReimbursed(record.id)">已报销</button>
             <button v-if="record.reimbursedAt" class="btn-undo" @click="undoReimbursed(record.id)">撤销报销</button>
@@ -169,8 +191,7 @@ onMounted(async () => {
 .table-scroll { overflow-x: auto; }
 .remark-input { width: 100%; min-width: 120px; }
 .oa-select { min-width: 80px; }
-.btn-oa-save { margin-left: 4px; min-height: 30px; padding: 0 8px; border: 1px solid #c4b5fd; border-radius: 6px; background: #fff; color: #7c3aed; font-size: 11px; font-weight: 700; cursor: pointer; }
-.btn-oa-save:hover { background: #7c3aed; color: #fff; }
+.batch-select { min-width: 80px; }
 .row-actions { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
 .btn-secondary { background: #f0f4ff !important; color: #2563eb !important; font-size: 12px !important; }
 .btn-secondary:hover { background: #2563eb !important; color: #fff !important; }

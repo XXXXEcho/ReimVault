@@ -53,6 +53,10 @@ function addAttachment(attachment: ReimbursementAttachment) {
   attachments.value.push(attachment);
 }
 
+function removeAttachment(id: number) {
+  attachments.value = attachments.value.filter((a) => a.id !== id);
+}
+
 async function uploadSelectedAttachments(id: number) {
   const responses = await Promise.all([
     ...form.paymentVoucherFiles.map((file) => uploadAttachment(id, 'PAYMENT_VOUCHER', file)),
@@ -139,9 +143,9 @@ onMounted(async () => {
     </label>
     <label>用途说明<input aria-label="用途说明" v-model="form.purpose" required :disabled="readonly" /></label>
     <label>支付时间<input aria-label="支付时间" v-model="form.paymentTime" type="datetime-local" required :disabled="readonly" /></label>
-    <AttachmentUploader v-model="form.paymentVoucherFiles" label="支付凭证" required attachment-type="PAYMENT_VOUCHER" :record-id="recordId" :attachments="attachmentsByType('PAYMENT_VOUCHER')" :readonly="readonly" data-test="payment-voucher-files" @uploaded="addAttachment" />
-    <AttachmentUploader v-model="form.orderScreenshotFiles" label="订单截图" attachment-type="ORDER_SCREENSHOT" :record-id="recordId" :attachments="attachmentsByType('ORDER_SCREENSHOT')" :readonly="readonly" data-test="order-screenshot-files" @uploaded="addAttachment" />
-    <AttachmentUploader v-model="form.invoiceFiles" label="发票" attachment-type="INVOICE" :record-id="recordId" :attachments="attachmentsByType('INVOICE')" :readonly="readonly" data-test="invoice-files" @uploaded="addAttachment" />
+    <AttachmentUploader v-model="form.paymentVoucherFiles" label="支付凭证" required attachment-type="PAYMENT_VOUCHER" :record-id="recordId" :attachments="attachmentsByType('PAYMENT_VOUCHER')" :readonly="readonly" data-test="payment-voucher-files" @uploaded="addAttachment" @deleted="removeAttachment" />
+    <AttachmentUploader v-model="form.orderScreenshotFiles" label="订单截图" attachment-type="ORDER_SCREENSHOT" :record-id="recordId" :attachments="attachmentsByType('ORDER_SCREENSHOT')" :readonly="readonly" data-test="order-screenshot-files" @uploaded="addAttachment" @deleted="removeAttachment" />
+    <AttachmentUploader v-model="form.invoiceFiles" label="发票" attachment-type="INVOICE" :record-id="recordId" :attachments="attachmentsByType('INVOICE')" :readonly="readonly" data-test="invoice-files" @uploaded="addAttachment" @deleted="removeAttachment" />
     <div v-if="!readonly" class="actions">
       <button type="button" data-test="save-draft" @click="saveDraft">保存草稿</button>
       <button type="button" data-test="submit-reimbursement" @click="submitRecord">提交</button>
