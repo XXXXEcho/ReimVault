@@ -99,8 +99,8 @@ onMounted(loadBatches);
     <template v-if="current">
       <h2 class="section-title">批次明细 — {{ current.name }}</h2>
       <table>
-        <thead><tr><th>记录ID</th><th>员工</th><th>分类</th><th>操作</th></tr></thead>
-        <tbody><tr v-for="item in current.items" :key="item.id"><td>{{ item.recordId }}</td><td>{{ item.employeeName }}</td><td>{{ item.categoryName }}</td><td><button class="btn-danger" @click="removeRecord(item.recordId)">移除</button></td></tr></tbody>
+        <thead><tr><th>记录ID</th><th>员工</th><th>分类</th><th>经费编码</th><th>操作</th></tr></thead>
+        <tbody><tr v-for="item in current.items" :key="item.id"><td>{{ item.recordId }}</td><td>{{ item.employeeName }}</td><td>{{ item.categoryName }}</td><td>{{ item.oaNumber || '—' }}</td><td><button class="btn-danger" @click="removeRecord(item.recordId)">移除</button></td></tr></tbody>
       </table>
     </template>
   </section>

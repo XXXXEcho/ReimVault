@@ -2,6 +2,7 @@ package com.company.reimbursement.reimbursement;
 
 import com.company.reimbursement.batch.ReimbursementBatch;
 import com.company.reimbursement.category.ExpenseCategory;
+import com.company.reimbursement.oa.OaNumber;
 import com.company.reimbursement.user.User;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -37,7 +38,9 @@ public class ReimbursementRecord {
     @JoinColumn(name = "batch_id")
     private ReimbursementBatch batch;
     private String adminRemark;
-    private String oaNumber;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "oa_id")
+    private OaNumber oa;
     private Instant createdAt;
     private Instant updatedAt;
     private Instant submittedAt;
@@ -70,7 +73,7 @@ public class ReimbursementRecord {
     public ReimbursementBatch getBatch() { return batch; }
     public void setBatch(ReimbursementBatch batch) { this.batch = batch; }
     public String getAdminRemark() { return adminRemark; }
-    public String getOaNumber() { return oaNumber; }
+    public OaNumber getOa() { return oa; }
     public Instant getSubmittedAt() { return submittedAt; }
     public Instant getArchivedAt() { return archivedAt; }
     public Instant getReimbursedAt() { return reimbursedAt; }
@@ -108,8 +111,8 @@ public class ReimbursementRecord {
         this.updatedAt = Instant.now();
     }
 
-    public void setOaNumber(String oaNumber) {
-        this.oaNumber = oaNumber;
+    public void setOa(OaNumber oa) {
+        this.oa = oa;
         this.updatedAt = Instant.now();
     }
 

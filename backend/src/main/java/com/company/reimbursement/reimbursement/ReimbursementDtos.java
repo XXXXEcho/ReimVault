@@ -8,16 +8,16 @@ import java.time.LocalDate;
 import java.util.List;
 
 public class ReimbursementDtos {
-    public record SaveRecordRequest(BigDecimal amount, Long categoryId, String purpose, Instant paymentTime) {
+    public record SaveRecordRequest(BigDecimal amount, Long categoryId, String purpose, Instant paymentTime, Long oaId) {
     }
 
     public record AdminRemarkRequest(String adminRemark) {
     }
 
-    public record OaNumberRequest(String oaNumber) {
+    public record OaNumberRequest(Long oaId) {
     }
 
-    public record AdminListFilter(Long employeeId, Long categoryId, ReimbursementStatus status, LocalDate from, LocalDate to, Boolean reimbursed, String oaNumber) {
+    public record AdminListFilter(Long employeeId, Long categoryId, ReimbursementStatus status, LocalDate from, LocalDate to, Boolean reimbursed, Long oaId) {
     }
 
     public record AttachmentResponse(Long id, AttachmentType type, String originalFilename, String contentType, long sizeBytes, Instant createdAt) {
@@ -44,6 +44,7 @@ public class ReimbursementDtos {
             Instant paymentTime,
             ReimbursementStatus status,
             String adminRemark,
+            Long oaId,
             String oaNumber,
             Instant submittedAt,
             Instant archivedAt,
@@ -64,7 +65,8 @@ public class ReimbursementDtos {
                     record.getPaymentTime(),
                     record.getStatus(),
                     record.getAdminRemark(),
-                    record.getOaNumber(),
+                    record.getOa() != null ? record.getOa().getId() : null,
+                    record.getOa() != null ? record.getOa().getNumber() : null,
                     record.getSubmittedAt(),
                     record.getArchivedAt(),
                     record.getReimbursedAt(),

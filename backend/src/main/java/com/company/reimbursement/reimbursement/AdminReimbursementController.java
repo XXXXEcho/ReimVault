@@ -31,9 +31,9 @@ public class AdminReimbursementController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
             @RequestParam(required = false) Boolean reimbursed,
-            @RequestParam(required = false) String oaNumber
+            @RequestParam(required = false) Long oaId
     ) {
-        return service.listAll(new ReimbursementDtos.AdminListFilter(employeeId, categoryId, status, from, to, reimbursed, oaNumber));
+        return service.listAll(new ReimbursementDtos.AdminListFilter(employeeId, categoryId, status, from, to, reimbursed, oaId));
     }
 
     @GetMapping("/{id}")

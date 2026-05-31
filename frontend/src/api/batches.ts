@@ -5,6 +5,7 @@ export interface BatchItem {
   recordId: number;
   employeeName: string;
   categoryName: string;
+  oaNumber: string;
 }
 
 export interface Batch {

@@ -4,6 +4,8 @@ import com.company.reimbursement.attachment.AttachmentType;
 import com.company.reimbursement.attachment.ReimbursementAttachmentRepository;
 import com.company.reimbursement.category.ExpenseCategory;
 import com.company.reimbursement.category.ExpenseCategoryRepository;
+import com.company.reimbursement.oa.OaNumber;
+import com.company.reimbursement.oa.OaNumberRepository;
 import com.company.reimbursement.user.User;
 import com.company.reimbursement.user.UserRepository;
 import jakarta.persistence.EntityNotFoundException;
@@ -21,12 +23,14 @@ public class ReimbursementService {
     private final UserRepository users;
     private final ExpenseCategoryRepository categories;
     private final ReimbursementAttachmentRepository attachments;
+    private final OaNumberRepository oaNumbers;
 
-    public ReimbursementService(ReimbursementRepository records, UserRepository users, ExpenseCategoryRepository categories, ReimbursementAttachmentRepository attachments) {
+    public ReimbursementService(ReimbursementRepository records, UserRepository users, ExpenseCategoryRepository categories, ReimbursementAttachmentRepository attachments, OaNumberRepository oaNumbers) {
         this.records = records;
         this.users = users;
         this.categories = categories;
         this.attachments = attachments;
+        this.oaNumbers = oaNumbers;
     }
 
     @Transactional
@@ -34,6 +38,7 @@ public class ReimbursementService {
         User employee = findUser(username);
         ExpenseCategory category = findCategory(request.categoryId());
         ReimbursementRecord record = ReimbursementRecord.createDraft(employee, request.amount(), category, request.purpose(), request.paymentTime());
+        if (request.oaId() != null) record.setOa(oaNumbers.findById(request.oaId()).orElseThrow());
         return response(records.save(record));
     }
 
@@ -41,6 +46,7 @@ public class ReimbursementService {
     public ReimbursementDtos.RecordResponse updateDraft(String username, Long id, ReimbursementDtos.SaveRecordRequest request) {
         ReimbursementRecord record = getOwnedRecord(username, id);
         record.updateDraft(request.amount(), findCategory(request.categoryId()), request.purpose(), request.paymentTime());
+        record.setOa(request.oaId() != null ? oaNumbers.findById(request.oaId()).orElseThrow() : null);
         return response(record);
     }
 
@@ -128,8 +134,8 @@ public class ReimbursementService {
                 if (filter.reimbursed()) predicates.add(cb.isNotNull(root.get("reimbursedAt")));
                 else predicates.add(cb.isNull(root.get("reimbursedAt")));
             }
-            if (filter.oaNumber() != null && !filter.oaNumber().isBlank()) {
-                predicates.add(cb.equal(root.get("oaNumber"), filter.oaNumber()));
+            if (filter.oaId() != null) {
+                predicates.add(cb.equal(root.get("oa").get("id"), filter.oaId()));
             }
             return cb.and(predicates.toArray(Predicate[]::new));
         };
@@ -145,7 +151,8 @@ public class ReimbursementService {
     @Transactional
     public ReimbursementDtos.RecordResponse updateOaNumber(Long id, ReimbursementDtos.OaNumberRequest request) {
         ReimbursementRecord record = records.findById(id).orElseThrow(() -> new EntityNotFoundException("报销记录不存在"));
-        record.setOaNumber(request.oaNumber());
+        OaNumber oa = request.oaId() != null ? oaNumbers.findById(request.oaId()).orElseThrow() : null;
+        record.setOa(oa);
         return response(record);
     }
 

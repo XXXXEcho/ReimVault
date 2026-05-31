@@ -108,6 +108,7 @@ describe('reimbursement form', () => {
     expect(http.post).toHaveBeenNthCalledWith(1, '/reimbursements', {
       amount: 88,
       categoryId: 7,
+      oaId: null,
       purpose: '客户拜访',
       paymentTime: new Date('2026-05-21T10:00:00').toISOString()
     });
@@ -140,6 +141,7 @@ describe('reimbursement form', () => {
     expect(http.patch).toHaveBeenCalledWith('/reimbursements/9', {
       amount: 99,
       categoryId: 7,
+      oaId: null,
       purpose: '新用途',
       paymentTime: new Date('2026-05-21T10:00:00').toISOString()
     });
@@ -277,8 +279,7 @@ describe('reimbursement form', () => {
       props: { id: 9 },
       global: { stubs: ['el-form', 'el-form-item', 'el-input', 'el-input-number', 'el-select', 'el-option', 'el-date-picker', 'el-button', 'el-upload'] }
     });
-    await Promise.resolve();
-    await Promise.resolve();
+    await flushPromises();
 
     await wrapper.find('[data-test="submit-reimbursement"]').trigger('click');
     await flushPromises();

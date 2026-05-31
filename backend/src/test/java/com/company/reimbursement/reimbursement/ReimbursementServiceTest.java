@@ -46,13 +46,13 @@ class ReimbursementServiceTest {
     @Test
     void employeeCreatesAndUpdatesOwnDraft() {
         ReimbursementDtos.RecordResponse created = service.createDraft(employee.getUsername(), new ReimbursementDtos.SaveRecordRequest(
-                new BigDecimal("128.00"), category.getId(), "购买键盘", Instant.parse("2026-05-01T10:00:00Z")));
+                new BigDecimal("128.00"), category.getId(), "购买键盘", Instant.parse("2026-05-01T10:00:00Z"), null));
 
         assertThat(created.status()).isEqualTo(ReimbursementStatus.DRAFT);
         assertThat(created.amount()).isEqualByComparingTo("128.00");
 
         ReimbursementDtos.RecordResponse updated = service.updateDraft(employee.getUsername(), created.id(), new ReimbursementDtos.SaveRecordRequest(
-                new BigDecimal("168.00"), category.getId(), "购买鼠标", Instant.parse("2026-05-02T10:00:00Z")));
+                new BigDecimal("168.00"), category.getId(), "购买鼠标", Instant.parse("2026-05-02T10:00:00Z"), null));
 
         assertThat(updated.amount()).isEqualByComparingTo("168.00");
         assertThat(updated.purpose()).isEqualTo("购买鼠标");
@@ -61,7 +61,7 @@ class ReimbursementServiceTest {
     @Test
     void employeeCannotReadAnotherEmployeesRecord() {
         ReimbursementDtos.RecordResponse created = service.createDraft(employee.getUsername(), new ReimbursementDtos.SaveRecordRequest(
-                new BigDecimal("128.00"), category.getId(), "购买键盘", Instant.parse("2026-05-01T10:00:00Z")));
+                new BigDecimal("128.00"), category.getId(), "购买键盘", Instant.parse("2026-05-01T10:00:00Z"), null));
 
         assertThatThrownBy(() -> service.getMine(anotherEmployee.getUsername(), created.id()))
                 .isInstanceOf(SecurityException.class)
@@ -71,7 +71,7 @@ class ReimbursementServiceTest {
     @Test
     void submitRequiresPaymentVoucher() {
         ReimbursementDtos.RecordResponse created = service.createDraft(employee.getUsername(), new ReimbursementDtos.SaveRecordRequest(
-                new BigDecimal("128.00"), category.getId(), "购买键盘", Instant.parse("2026-05-01T10:00:00Z")));
+                new BigDecimal("128.00"), category.getId(), "购买键盘", Instant.parse("2026-05-01T10:00:00Z"), null));
 
         assertThatThrownBy(() -> service.submit(employee.getUsername(), created.id()))
                 .isInstanceOf(IllegalArgumentException.class)
@@ -85,7 +85,7 @@ class ReimbursementServiceTest {
         records.save(record);
 
         assertThatThrownBy(() -> service.updateDraft(employee.getUsername(), record.getId(), new ReimbursementDtos.SaveRecordRequest(
-                new BigDecimal("168.00"), category.getId(), "购买鼠标", Instant.parse("2026-05-02T10:00:00Z"))))
+                new BigDecimal("168.00"), category.getId(), "购买鼠标", Instant.parse("2026-05-02T10:00:00Z"), null)))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessage("只能修改草稿记录");
     }
@@ -93,7 +93,7 @@ class ReimbursementServiceTest {
     @Test
     void adminWritesRemark() {
         ReimbursementDtos.RecordResponse created = service.createDraft(employee.getUsername(), new ReimbursementDtos.SaveRecordRequest(
-                new BigDecimal("128.00"), category.getId(), "购买键盘", Instant.parse("2026-05-01T10:00:00Z")));
+                new BigDecimal("128.00"), category.getId(), "购买键盘", Instant.parse("2026-05-01T10:00:00Z"), null));
 
         ReimbursementDtos.RecordResponse updated = service.updateAdminRemark(created.id(), new ReimbursementDtos.AdminRemarkRequest("缺少订单截图"));
 

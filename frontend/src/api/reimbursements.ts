@@ -17,6 +17,7 @@ export interface ReimbursementInput {
   categoryId: number;
   purpose: string;
   paymentTime: string;
+  oaId: number | null;
 }
 
 export interface ReimbursementAttachment {
@@ -35,12 +36,13 @@ export interface ReimbursementRecord extends ReimbursementInput {
   categoryName: string;
   status: ReimbursementStatus;
   adminRemark: string;
-  oaNumber: string;
   submittedAt: string | null;
   archivedAt: string | null;
   reimbursedAt: string | null;
   batchId: number | null;
   batchName: string | null;
+  oaId: number | null;
+  oaNumber: string;
   attachments?: ReimbursementAttachment[];
 }
 
