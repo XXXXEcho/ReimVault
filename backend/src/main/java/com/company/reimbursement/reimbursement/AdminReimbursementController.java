@@ -54,4 +54,9 @@ public class AdminReimbursementController {
     ReimbursementDtos.RecordResponse reimburse(@PathVariable Long id) {
         return service.markReimbursed(id);
     }
+
+    @PostMapping("/{id}/unreimburse")
+    ReimbursementDtos.RecordResponse unreimburse(@PathVariable Long id) {
+        return service.clearReimbursed(id);
+    }
 }

@@ -126,6 +126,11 @@ public class ReimbursementRecord {
         this.updatedAt = this.reimbursedAt;
     }
 
+    public void clearReimbursed() {
+        this.reimbursedAt = null;
+        this.updatedAt = Instant.now();
+    }
+
     public void ensureDraft() {
         if (status != ReimbursementStatus.DRAFT) {
             throw new IllegalStateException("只能修改草稿记录");

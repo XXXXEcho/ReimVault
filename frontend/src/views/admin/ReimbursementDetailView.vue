@@ -47,7 +47,7 @@ onMounted(async () => {
         <dl>
           <dt>员工</dt><dd>{{ record.employeeName }}</dd>
           <dt>金额</dt><dd>{{ record.amount }}</dd>
-          <dt>状态</dt><dd><span class="status-tag" :class="record.status.toLowerCase()">{{ statusLabel(record.status) }}</span></dd>
+          <dt>状态</dt><dd><span class="status-tag" :class="record.reimbursedAt ? 'reimbursed' : record.status.toLowerCase()">{{ statusLabel(record.status, record.reimbursedAt) }}</span></dd>
           <dt>用途分类</dt><dd>{{ record.categoryName }}</dd>
           <dt>用途说明</dt><dd>{{ record.purpose }}</dd>
           <dt>支付时间</dt><dd>{{ formatTime(record.paymentTime) }}</dd>
@@ -117,6 +117,7 @@ dt { color: #64748b; font-size: 13px; font-weight: 700; white-space: nowrap; }
 dd { margin: 0; color: #1f2937; font-size: 13px; }
 .status-tag { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 11px; font-weight: 800; letter-spacing: .4px; }
 .status-tag.submitted { background: #dbeafe; color: #1d4ed8; }
+.status-tag.reimbursed { background: #dcfce7; color: #166534; }
 .status-tag.archived { background: #f3f4f6; color: #6b7280; }
 .status-tag.draft { background: #fef3c7; color: #b45309; }
 .preview-list { column-count: 2; column-gap: 12px; margin-bottom: 16px; }

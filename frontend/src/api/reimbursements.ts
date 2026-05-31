@@ -2,7 +2,8 @@ import http from './http';
 
 export type ReimbursementStatus = 'DRAFT' | 'SUBMITTED' | 'ARCHIVED';
 
-export function statusLabel(status: ReimbursementStatus) {
+export function statusLabel(status: ReimbursementStatus, reimbursedAt?: string | null) {
+  if (status === 'SUBMITTED' && reimbursedAt) return '已报销';
   return { DRAFT: '未提交', SUBMITTED: '已提交未报销', ARCHIVED: '已报销' }[status];
 }
 
@@ -109,4 +110,8 @@ export function rejectReimbursement(id: number) {
 
 export function markReimbursed(id: number) {
   return http.post<ReimbursementRecord>(`/admin/reimbursements/${id}/reimburse`);
+}
+
+export function unreimburse(id: number) {
+  return http.post<ReimbursementRecord>(`/admin/reimbursements/${id}/unreimburse`);
 }

@@ -36,7 +36,7 @@ onMounted(load);
           <td>{{ record.categoryName }}</td>
           <td>{{ record.purpose }}</td>
           <td>{{ formatTime(record.paymentTime) }}</td>
-          <td><span class="status-tag" :class="record.status.toLowerCase()">{{ statusLabel(record.status) }}</span></td>
+          <td><span class="status-tag" :class="record.reimbursedAt ? 'reimbursed' : record.status.toLowerCase()">{{ statusLabel(record.status, record.reimbursedAt) }}</span></td>
           <td>{{ formatTime(record.submittedAt) }}</td>
           <td class="row-actions">
             <RouterLink v-if="record.status === 'DRAFT'" :to="`/reimbursements/${record.id}`">编辑</RouterLink>
@@ -54,6 +54,7 @@ onMounted(load);
 .toolbar { margin-bottom: 18px; }
 .status-tag { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 11px; font-weight: 800; letter-spacing: .4px; }
 .status-tag.submitted { background: #dbeafe; color: #1d4ed8; }
+.status-tag.reimbursed { background: #dcfce7; color: #166534; }
 .status-tag.archived { background: #f3f4f6; color: #6b7280; }
 .status-tag.draft { background: #fef3c7; color: #b45309; }
 .row-actions { display: flex; gap: 6px; align-items: center; }

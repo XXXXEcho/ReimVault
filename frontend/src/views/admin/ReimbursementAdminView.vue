@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue';
 import { RouterLink } from 'vue-router';
-import { listAdminReimbursements, rejectReimbursement, updateAdminRemark, markReimbursed, type ReimbursementRecord, type ReimbursementStatus, statusLabel, formatTime } from '../../api/reimbursements';
+import { listAdminReimbursements, rejectReimbursement, updateAdminRemark, markReimbursed, unreimburse, type ReimbursementRecord, type ReimbursementStatus, statusLabel, formatTime } from '../../api/reimbursements';
 import { addBatchItem, ensureMonthlyBatch, type Batch } from '../../api/batches';
 import { useAuthStore } from '../../stores/auth';
 
@@ -87,6 +87,17 @@ async function markAsReimbursed(id: number) {
   }
 }
 
+async function undoReimbursed(id: number) {
+  notice.value = null;
+  try {
+    await unreimburse(id);
+    notice.value = { type: 'success', text: '已撤销报销' };
+    await load();
+  } catch (err) {
+    notice.value = { type: 'error', text: errorMessage(err) };
+  }
+}
+
 onMounted(async () => {
   await Promise.all([load(), initMonthlyBatch()]);
 });
@@ -114,7 +125,7 @@ onMounted(async () => {
           <td>{{ record.categoryName }}</td>
           <td>{{ record.purpose }}</td>
           <td>{{ formatTime(record.paymentTime) }}</td>
-          <td><span class="status-tag" :class="record.status.toLowerCase()">{{ statusLabel(record.status) }}</span></td>
+          <td><span class="status-tag" :class="record.reimbursedAt ? 'reimbursed' : record.status.toLowerCase()">{{ statusLabel(record.status, record.reimbursedAt) }}</span></td>
           <td>{{ formatTime(record.reimbursedAt) }}</td>
           <td>{{ record.batchName ?? '—' }}</td>
           <td><input class="remark-input" :aria-label="`备注${record.id}`" v-model="remarks[record.id]" /></td>
@@ -124,6 +135,7 @@ onMounted(async () => {
             <button v-if="!record.batchId && record.status === 'SUBMITTED' && monthlyBatch" class="btn-secondary" @click="addToMonthlyBatch(record.id)">加入月度批次</button>
             <button v-if="record.status === 'SUBMITTED' && !record.batchId" class="btn-warning" @click="rejectRecord(record.id)">打回</button>
             <button v-if="record.status === 'SUBMITTED' && !record.reimbursedAt" class="btn-success" @click="markAsReimbursed(record.id)">已报销</button>
+            <button v-if="record.reimbursedAt" class="btn-undo" @click="undoReimbursed(record.id)">撤销报销</button>
           </td>
         </tr>
       </tbody>
@@ -138,6 +150,7 @@ onMounted(async () => {
 .notice.error { background: #fee2e2; color: #991b1b; }
 .status-tag { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 11px; font-weight: 800; letter-spacing: .4px; }
 .status-tag.submitted { background: #dbeafe; color: #1d4ed8; }
+.status-tag.reimbursed { background: #dcfce7; color: #166534; }
 .status-tag.archived { background: #f3f4f6; color: #6b7280; }
 .status-tag.draft { background: #fef3c7; color: #b45309; }
 .remark-input { width: 100%; min-width: 120px; }
@@ -150,4 +163,6 @@ onMounted(async () => {
 .btn-warning:hover { background: #b45309; color: #fff; }
 .btn-success { min-height: 34px; padding: 0 12px; border: 1px solid #86efac; border-radius: 8px; background: #fff; color: #16a34a; font-size: 12px; font-weight: 700; cursor: pointer; transition: background 160ms ease, color 160ms ease; }
 .btn-success:hover { background: #16a34a; color: #fff; }
+.btn-undo { min-height: 34px; padding: 0 12px; border: 1px solid #fca5a5; border-radius: 8px; background: #fff; color: #dc2626; font-size: 12px; font-weight: 700; cursor: pointer; transition: background 160ms ease, color 160ms ease; }
+.btn-undo:hover { background: #dc2626; color: #fff; }
 </style>

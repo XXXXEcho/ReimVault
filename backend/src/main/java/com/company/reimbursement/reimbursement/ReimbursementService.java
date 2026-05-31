@@ -92,6 +92,13 @@ public class ReimbursementService {
         return response(record);
     }
 
+    @Transactional
+    public ReimbursementDtos.RecordResponse clearReimbursed(Long id) {
+        ReimbursementRecord record = records.findById(id).orElseThrow(() -> new EntityNotFoundException("报销记录不存在"));
+        record.clearReimbursed();
+        return response(record);
+    }
+
     @Transactional(readOnly = true)
     public List<ReimbursementDtos.RecordResponse> listAll(ReimbursementDtos.AdminListFilter filter) {
         return records.findAll(adminFilter(filter)).stream()
