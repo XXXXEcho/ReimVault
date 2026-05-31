@@ -1,8 +1,8 @@
 spring:
   datasource:
-    url: jdbc:mysql://localhost:3306/reimbursement?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
-    username: reimbursement
-    password: reimbursement
+    url: ${DB_URL:jdbc:mysql://localhost:3306/reimbursement?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai}
+    username: ${DB_USERNAME:reimbursement}
+    password: ${DB_PASSWORD:reimbursement}
   jpa:
     hibernate:
       ddl-auto: validate
