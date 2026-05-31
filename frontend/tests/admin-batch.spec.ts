@@ -200,8 +200,7 @@ describe('admin views', () => {
         status: 'ARCHIVED',
         from: '2026-05-01',
         to: '2026-05-31',
-        reimbursed: undefined,
-        oaNumber: undefined
+        reimbursed: undefined
       }
     });
   });
