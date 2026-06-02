@@ -167,7 +167,7 @@ onMounted(async () => {
           <td class="row-actions">
             <RouterLink :to="`/admin/reimbursements/${record.id}`" class="link-view">查看</RouterLink>
             <button @click="saveRemark(record.id)">保存备注</button>
-            <button v-if="record.status === 'SUBMITTED' && !record.batchId" class="btn-warning" @click="rejectRecord(record.id)">打回</button>
+            <button v-if="record.status === 'SUBMITTED'" class="btn-warning" @click="rejectRecord(record.id)">打回</button>
             <button v-if="record.status === 'SUBMITTED' && !record.reimbursedAt" class="btn-success" @click="markAsReimbursed(record.id)">已报销</button>
             <button v-if="record.reimbursedAt" class="btn-undo" @click="undoReimbursed(record.id)">撤销报销</button>
           </td>
