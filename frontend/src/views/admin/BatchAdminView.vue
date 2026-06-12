@@ -1,13 +1,18 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue';
-import { addBatchItem, archiveBatch, createBatch, exportBatchAttachments, exportBatchExcel, getBatch, listBatches, removeBatchItem, type Batch } from '../../api/batches';
+import { addBatchItem, archiveBatch, createBatch, exportBatchAttachments, exportBatchExcel, exportFilteredAttachments, exportFilteredExcel, getBatch, listBatches, removeBatchItem, type Batch } from '../../api/batches';
 import { formatTime } from '../../api/reimbursements';
+import { listOaNumbers, type OaNumber } from '../../api/oa';
 
 const batches = ref<Batch[]>([]);
 const current = ref<Batch | null>(null);
+const oaNumbers = ref<OaNumber[]>([]);
 const form = reactive({ name: '', description: '' });
 const batchId = ref<number | null>(null);
 const recordId = ref<number | null>(null);
+const selectedOaIds = ref<number[]>([]);
+const selectedMonths = ref<string[]>([]);
+const monthOptions = ref<string[]>([]);
 
 async function loadBatches() {
   const response = await listBatches();
@@ -71,7 +76,28 @@ async function exportAttachments() {
   downloadBlob(response.data, `batch-${batchId.value}-attachments.zip`);
 }
 
-onMounted(loadBatches);
+async function doExportFilteredExcel() {
+  const response = await exportFilteredExcel(selectedOaIds.value, selectedMonths.value);
+  downloadBlob(response.data, 'export.xlsx');
+}
+
+async function doExportFilteredAttachments() {
+  const response = await exportFilteredAttachments(selectedOaIds.value, selectedMonths.value);
+  downloadBlob(response.data, 'export-attachments.zip');
+}
+
+onMounted(async () => {
+  await loadBatches();
+  const oaResponse = await listOaNumbers();
+  oaNumbers.value = oaResponse.data;
+  const now = new Date();
+  const months: string[] = [];
+  for (let i = 0; i < 12; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    months.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+  }
+  monthOptions.value = months;
+});
 </script>
 
 <template>
@@ -82,6 +108,36 @@ onMounted(loadBatches);
       <input aria-label="批次描述" v-model="form.description" placeholder="批次描述" />
       <button type="submit">创建批次</button>
     </form>
+
+    <div class="filter-section">
+      <strong>筛选导出</strong>
+      <div class="filter-row">
+        <div class="multi-select-wrapper">
+          <span class="multi-label">经费编码</span>
+          <div class="multi-dropdown">
+            <label v-for="oa in oaNumbers" :key="oa.id" class="multi-option">
+              <input type="checkbox" :value="oa.id" v-model="selectedOaIds" />
+              {{ oa.number }}
+            </label>
+            <p v-if="!oaNumbers.length" class="empty-hint">暂无经费编码</p>
+          </div>
+        </div>
+        <div class="multi-select-wrapper">
+          <span class="multi-label">月份</span>
+          <div class="multi-dropdown">
+            <label v-for="m in monthOptions" :key="m" class="multi-option">
+              <input type="checkbox" :value="m" v-model="selectedMonths" />
+              {{ m }}
+            </label>
+          </div>
+        </div>
+      </div>
+      <div class="filter-actions">
+        <button type="button" class="btn-export" @click="doExportFilteredExcel">导出 Excel</button>
+        <button type="button" class="btn-export" @click="doExportFilteredAttachments">导出附件</button>
+      </div>
+    </div>
+
     <form class="inline-form" @submit.prevent="loadBatch()">
       <input aria-label="批次ID" v-model="batchId" type="number" placeholder="批次ID" />
       <button data-test="load-batch" type="submit">加载批次</button>
@@ -109,6 +165,18 @@ onMounted(loadBatches);
 <style scoped>
 .inline-form { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 18px; }
 .section-title { margin: 22px 0 12px; font-size: 16px; color: #1e293b; }
+.filter-section { padding: 16px; margin-bottom: 18px; border: 1px solid #e5e7eb; border-radius: 14px; background: #f8fafc; }
+.filter-section > strong { display: block; margin-bottom: 12px; color: #1e293b; font-size: 14px; }
+.filter-row { display: flex; gap: 16px; flex-wrap: wrap; }
+.multi-select-wrapper { min-width: 160px; }
+.multi-label { display: block; margin-bottom: 4px; color: #64748b; font-size: 12px; font-weight: 700; }
+.multi-dropdown { max-height: 180px; overflow-y: auto; padding: 6px; border: 1px solid #dbe3ef; border-radius: 8px; background: #fff; }
+.multi-option { display: flex; align-items: center; gap: 6px; padding: 4px 6px; font-size: 13px; cursor: pointer; border-radius: 4px; }
+.multi-option:hover { background: #f0f4ff; }
+.empty-hint { margin: 4px 0; color: #94a3b8; font-size: 12px; }
+.filter-actions { display: flex; gap: 10px; margin-top: 12px; }
+.btn-export { min-height: 36px; padding: 0 16px; border: 1px solid #93c5fd; border-radius: 8px; background: #fff; color: #2563eb; font-size: 13px; font-weight: 700; cursor: pointer; }
+.btn-export:hover { background: #2563eb; color: #fff; }
 .btn-secondary { background: #f0f4ff !important; color: #2563eb !important; font-size: 12px !important; }
 .btn-secondary:hover { background: #2563eb !important; color: #fff !important; }
 .btn-danger { min-height: 34px; padding: 0 12px; border: 1px solid #fca5a5; border-radius: 8px; background: #fff; color: #dc2626; font-size: 12px; font-weight: 700; cursor: pointer; transition: background 160ms ease, color 160ms ease; }

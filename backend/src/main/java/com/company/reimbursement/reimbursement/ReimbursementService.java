@@ -10,7 +10,9 @@ import com.company.reimbursement.user.User;
 import com.company.reimbursement.user.UserRepository;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.persistence.criteria.Predicate;
+import java.time.LocalDate;
 import java.time.ZoneOffset;
+import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.List;
 import org.springframework.data.jpa.domain.Specification;
@@ -116,6 +118,39 @@ public class ReimbursementService {
     public ReimbursementDtos.RecordResponse getAny(Long id) {
         ReimbursementRecord record = records.findById(id).orElseThrow(() -> new EntityNotFoundException("报销记录不存在"));
         return response(record);
+    }
+
+    @Transactional(readOnly = true)
+    public List<ReimbursementRecord> listFiltered(List<Long> oaIds, List<String> months) {
+        return records.findAll((root, query, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
+            predicates.add(cb.equal(root.get("status"), ReimbursementStatus.SUBMITTED));
+            if (oaIds != null && !oaIds.isEmpty()) {
+                predicates.add(root.get("oa").get("id").in(oaIds));
+            }
+            if (months != null && !months.isEmpty()) {
+                List<Predicate> monthPredicates = new ArrayList<>();
+                for (String m : months) {
+                    YearMonth ym = YearMonth.parse(m);
+                    LocalDate start = ym.atDay(1);
+                    LocalDate end = ym.plusMonths(1).atDay(1);
+                    monthPredicates.add(cb.and(
+                            cb.greaterThanOrEqualTo(root.get("paymentTime"), start.atStartOfDay().toInstant(ZoneOffset.UTC)),
+                            cb.lessThan(root.get("paymentTime"), end.atStartOfDay().toInstant(ZoneOffset.UTC))
+                    ));
+                }
+                predicates.add(cb.or(monthPredicates.toArray(Predicate[]::new)));
+            }
+            return cb.and(predicates.toArray(Predicate[]::new));
+        });
+    }
+
+    @Transactional
+    public void archiveRecords(List<Long> ids) {
+        for (Long id : ids) {
+            ReimbursementRecord record = records.findById(id).orElseThrow(() -> new EntityNotFoundException("报销记录不存在"));
+            record.archive();
+        }
     }
 
     private ReimbursementDtos.RecordResponse response(ReimbursementRecord record) {

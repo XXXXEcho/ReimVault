@@ -96,4 +96,39 @@ public class ZipExportService {
     private String amountText(BigDecimal amount) {
         return amount.setScale(2).toPlainString();
     }
+
+    @Transactional(readOnly = true)
+    public byte[] exportAttachmentsForRecords(List<ReimbursementRecord> recordList) {
+        List<String> missing = new ArrayList<>();
+        try (ByteArrayOutputStream out = new ByteArrayOutputStream(); ZipOutputStream zip = new ZipOutputStream(out)) {
+            for (int i = 0; i < recordList.size(); i++) {
+                writeRecordZip(zip, recordList.get(i), i + 1, missing);
+            }
+            if (!missing.isEmpty()) {
+                ZipEntry entry = new ZipEntry("报销导出/附件缺失清单.txt");
+                zip.putNextEntry(entry);
+                zip.write(String.join(System.lineSeparator(), missing).getBytes(java.nio.charset.StandardCharsets.UTF_8));
+                zip.closeEntry();
+            }
+            zip.finish();
+            return out.toByteArray();
+        } catch (IOException ex) {
+            throw new UncheckedIOException(ex);
+        }
+    }
+
+    private void writeRecordZip(ZipOutputStream zip, ReimbursementRecord record, int sequence, List<String> missing) throws IOException {
+        String recordPath = "报销导出/" + safe(record.getEmployee().getDisplayName()) + "/" + "%03d".formatted(sequence) + "-" + safe(record.getCategory().getName()) + "-" + amountText(record.getAmount());
+        for (ReimbursementAttachment attachment : attachments.findByRecord(record)) {
+            Path file = root.resolve(attachment.getStoragePath()).normalize();
+            String entryName = recordPath + "/" + folderName(attachment.getType()) + "/" + safe(attachment.getOriginalFilename());
+            if (!Files.exists(file)) {
+                missing.add(entryName);
+                continue;
+            }
+            zip.putNextEntry(new ZipEntry(entryName));
+            Files.copy(file, zip);
+            zip.closeEntry();
+        }
+    }
 }

@@ -120,6 +120,10 @@ export function unreimburse(id: number) {
   return http.post<ReimbursementRecord>(`/admin/reimbursements/${id}/unreimburse`);
 }
 
+export function archiveRecords(ids: number[]) {
+  return http.post('/admin/reimbursements/archive', { ids });
+}
+
 export function updateOaNumber(id: number, oaId: number | null) {
   return http.patch<ReimbursementRecord>(`/admin/reimbursements/${id}/oa-number`, { oaId });
 }

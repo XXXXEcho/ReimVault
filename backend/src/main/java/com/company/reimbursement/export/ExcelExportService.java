@@ -111,4 +111,39 @@ public class ExcelExportService {
             case ARCHIVED -> "已报销";
         };
     }
+
+    @Transactional(readOnly = true)
+    public byte[] exportRecords(List<ReimbursementRecord> recordList) {
+        try (Workbook workbook = new XSSFWorkbook(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            Sheet sheet = workbook.createSheet("报销清单");
+            writeHeader(sheet.createRow(0));
+            for (int i = 0; i < recordList.size(); i++) {
+                writeRecordRow(sheet.createRow(i + 1), recordList.get(i), i + 1);
+            }
+            workbook.write(out);
+            return out.toByteArray();
+        } catch (IOException ex) {
+            throw new UncheckedIOException(ex);
+        }
+    }
+
+    private void writeRecordRow(Row row, ReimbursementRecord record, int sequence) {
+        List<ReimbursementAttachment> recordAttachments = attachments.findByRecord(record);
+        row.createCell(0).setCellValue(record.getBatch() != null ? record.getBatch().getName() : "");
+        row.createCell(1).setCellValue(record.getEmployee().getDisplayName());
+        row.createCell(2).setCellValue(record.getEmployee().getDepartment());
+        row.createCell(3).setCellValue(record.getAmount().doubleValue());
+        row.createCell(4).setCellValue(record.getCategory().getName());
+        row.createCell(5).setCellValue(record.getPurpose());
+        row.createCell(6).setCellValue(record.getOa() != null ? record.getOa().getNumber() : "");
+        row.createCell(7).setCellValue(FMT.format(record.getPaymentTime()));
+        row.createCell(8).setCellValue(count(recordAttachments, AttachmentType.PAYMENT_VOUCHER));
+        row.createCell(9).setCellValue(count(recordAttachments, AttachmentType.ORDER_SCREENSHOT));
+        row.createCell(10).setCellValue(count(recordAttachments, AttachmentType.INVOICE));
+        row.createCell(11).setCellValue(record.getSubmittedAt() == null ? "" : FMT.format(record.getSubmittedAt()));
+        row.createCell(12).setCellValue(statusLabel(record));
+        row.createCell(13).setCellValue(record.getReimbursedAt() == null ? "" : FMT.format(record.getReimbursedAt()));
+        row.createCell(14).setCellValue(record.getAdminRemark() == null ? "" : record.getAdminRemark());
+        row.createCell(15).setCellValue(attachmentDirectory(record, recordAttachments, sequence));
+    }
 }

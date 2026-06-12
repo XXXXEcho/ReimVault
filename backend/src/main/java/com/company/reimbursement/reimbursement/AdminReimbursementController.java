@@ -65,4 +65,12 @@ public class AdminReimbursementController {
     ReimbursementDtos.RecordResponse unreimburse(@PathVariable Long id) {
         return service.clearReimbursed(id);
     }
+
+    @PostMapping("/archive")
+    void archive(@RequestBody ArchiveRequest request) {
+        service.archiveRecords(request.ids());
+    }
+
+    public record ArchiveRequest(List<Long> ids) {
+    }
 }

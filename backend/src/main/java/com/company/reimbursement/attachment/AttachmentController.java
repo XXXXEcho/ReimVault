@@ -43,7 +43,9 @@ public class AttachmentController {
     ReimbursementDtos.AttachmentResponse upload(@PathVariable Long id, @RequestParam AttachmentType type, @RequestParam MultipartFile file, Authentication authentication) {
         User user = findUser(authentication.getName());
         ReimbursementRecord record = records.findById(id).orElseThrow(() -> new EntityNotFoundException("报销记录不存在"));
-        ensureOwner(record, user);
+        if (user.getRole() != UserRole.ADMIN && user.getRole() != UserRole.SPECIALIST) {
+            ensureOwner(record, user);
+        }
         if (record.getStatus() != ReimbursementStatus.DRAFT) {
             throw new IllegalArgumentException("只能给草稿记录上传附件");
         }
@@ -74,7 +76,9 @@ public class AttachmentController {
     void delete(@PathVariable Long id, Authentication authentication) {
         User user = findUser(authentication.getName());
         ReimbursementAttachment attachment = attachments.findById(id).orElseThrow(() -> new EntityNotFoundException("附件不存在"));
-        ensureOwner(attachment.getRecord(), user);
+        if (user.getRole() != UserRole.ADMIN && user.getRole() != UserRole.SPECIALIST) {
+            ensureOwner(attachment.getRecord(), user);
+        }
         if (attachment.getRecord().getStatus() != ReimbursementStatus.DRAFT) {
             throw new IllegalArgumentException("只能删除草稿记录的附件");
         }

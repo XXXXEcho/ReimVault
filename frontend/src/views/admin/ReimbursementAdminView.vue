@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue';
 import { RouterLink } from 'vue-router';
-import { listAdminReimbursements, rejectReimbursement, updateAdminRemark, updateOaNumber as updateOa, markReimbursed, unreimburse, type ReimbursementRecord, type ReimbursementStatus, statusLabel, formatTime } from '../../api/reimbursements';
+import { listAdminReimbursements, rejectReimbursement, updateAdminRemark, updateOaNumber as updateOa, markReimbursed, unreimburse, archiveRecords, type ReimbursementRecord, type ReimbursementStatus, statusLabel, formatTime } from '../../api/reimbursements';
 import { listOaNumbers, type OaNumber } from '../../api/oa';
 import { addBatchItem, removeBatchItem, listBatches, ensureMonthlyBatch, type Batch } from '../../api/batches';
 
@@ -95,9 +95,12 @@ async function addToMonthlyBatch(recordId: number) {
 }
 
 async function rejectRecord(id: number) {
-  if (!confirm('确定要打回这条记录吗？打回后员工可重新编辑。')) return;
   notice.value = null;
   try {
+    const record = records.value.find((r) => r.id === id);
+    if (record?.batchId) {
+      await removeBatchItem(record.batchId, id);
+    }
     await rejectReimbursement(id);
     notice.value = { type: 'success', text: '已打回' };
     await load();
@@ -122,6 +125,17 @@ async function undoReimbursed(id: number) {
   try {
     await unreimburse(id);
     notice.value = { type: 'success', text: '已撤销报销' };
+    await load();
+  } catch (err) {
+    notice.value = { type: 'error', text: errorMessage(err) };
+  }
+}
+
+async function archiveRecord(id: number) {
+  notice.value = null;
+  try {
+    await archiveRecords([id]);
+    notice.value = { type: 'success', text: '已归档' };
     await load();
   } catch (err) {
     notice.value = { type: 'error', text: errorMessage(err) };
@@ -170,6 +184,7 @@ onMounted(async () => {
             <button v-if="record.status === 'SUBMITTED'" class="btn-warning" @click="rejectRecord(record.id)">打回</button>
             <button v-if="record.status === 'SUBMITTED' && !record.reimbursedAt" class="btn-success" @click="markAsReimbursed(record.id)">已报销</button>
             <button v-if="record.reimbursedAt" class="btn-undo" @click="undoReimbursed(record.id)">撤销报销</button>
+            <button v-if="record.reimbursedAt" class="btn-archive" @click="archiveRecord(record.id)">归档</button>
           </td>
         </tr>
       </tbody>
@@ -203,4 +218,6 @@ onMounted(async () => {
 .btn-success:hover { background: #16a34a; color: #fff; }
 .btn-undo { min-height: 34px; padding: 0 12px; border: 1px solid #fca5a5; border-radius: 8px; background: #fff; color: #dc2626; font-size: 12px; font-weight: 700; cursor: pointer; transition: background 160ms ease, color 160ms ease; }
 .btn-undo:hover { background: #dc2626; color: #fff; }
+.btn-archive { min-height: 34px; padding: 0 12px; border: 1px solid #a5b4fc; border-radius: 8px; background: #fff; color: #4f46e5; font-size: 12px; font-weight: 700; cursor: pointer; }
+.btn-archive:hover { background: #4f46e5; color: #fff; }
 </style>

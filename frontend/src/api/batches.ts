@@ -52,3 +52,17 @@ export function exportBatchAttachments(batchId: number) {
 export function ensureMonthlyBatch() {
   return http.post<Batch>('/admin/batches/monthly');
 }
+
+export function exportFilteredExcel(oaIds: number[], months: string[]) {
+  const params = new URLSearchParams();
+  if (oaIds.length) params.set('oaIds', oaIds.join(','));
+  if (months.length) params.set('months', months.join(','));
+  return http.get<Blob>('/admin/batches/export/excel', { params, responseType: 'blob' });
+}
+
+export function exportFilteredAttachments(oaIds: number[], months: string[]) {
+  const params = new URLSearchParams();
+  if (oaIds.length) params.set('oaIds', oaIds.join(','));
+  if (months.length) params.set('months', months.join(','));
+  return http.get<Blob>('/admin/batches/export/attachments', { params, responseType: 'blob' });
+}
