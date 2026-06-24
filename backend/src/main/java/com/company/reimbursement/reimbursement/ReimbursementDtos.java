@@ -20,6 +20,12 @@ public class ReimbursementDtos {
     public record AdminListFilter(Long employeeId, Long categoryId, ReimbursementStatus status, LocalDate from, LocalDate to, Boolean reimbursed, Long oaId) {
     }
 
+    public record StatsResponse(long totalCount, BigDecimal totalAmount,
+            long reimbursedCount, BigDecimal reimbursedAmount,
+            long unreimbursedCount, BigDecimal unreimbursedAmount,
+            long draftCount, BigDecimal draftAmount) {
+    }
+
     public record AttachmentResponse(Long id, AttachmentType type, String originalFilename, String contentType, long sizeBytes, Instant createdAt) {
         public static AttachmentResponse from(ReimbursementAttachment attachment) {
             return new AttachmentResponse(

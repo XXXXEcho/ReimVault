@@ -205,6 +205,64 @@ describe('admin views', () => {
     });
   });
 
+  it('previews filtered export records before enabling downloads', async () => {
+    vi.mocked(http.get).mockImplementation((url: string) => {
+      if (url === '/admin/batches') return Promise.resolve({ data: [{ id: 5, name: '五月批次', description: '月度报销', archivedAt: null, items: [] }] });
+      if (url === '/oa-numbers') return Promise.resolve({ data: [{ id: 1, number: 'JF-001' }] });
+      if (url === '/admin/batches/export/preview') return Promise.resolve({ data: [{ id: 88, employeeId: 2, employeeName: '员工一', amount: 128, categoryId: 3, categoryName: '办公用品', purpose: '五月命中', paymentTime: '2026-05-10T10:00:00Z', status: 'SUBMITTED', adminRemark: '', submittedAt: '2026-05-11T10:00:00Z', archivedAt: null, reimbursedAt: null, batchId: null, batchName: null, oaId: 1, oaNumber: 'JF-001' }] });
+      if (url === '/admin/batches/5') return Promise.resolve({ data: { id: 5, name: '五月批次', description: '月度报销', archivedAt: null, items: [] } });
+      return Promise.resolve({ data: [] });
+    });
+
+    const wrapper = mount(BatchAdminView, { global: { stubs: ['el-table', 'el-table-column', 'el-form', 'el-form-item', 'el-input', 'el-button'] } });
+    await vi.waitFor(() => expect(wrapper.text()).toContain('JF-001'));
+
+    const page = wrapper.text();
+    expect(page).toContain('先查询并核对命中记录，再导出 Excel 或附件压缩包。');
+    expect(page.indexOf('批量导出')).toBeLessThan(page.indexOf('创建批次'));
+    expect(page.indexOf('创建批次')).toBeLessThan(page.indexOf('批次列表'));
+    expect(page.indexOf('批次列表')).toBeLessThan(page.indexOf('高级操作：按 ID 维护批次'));
+    expect(page).toContain('请选择筛选条件后查询结果');
+    expect(wrapper.find('[data-test="export-filtered-excel"]').attributes('disabled')).toBeDefined();
+    expect(wrapper.find('[data-test="export-filtered-attachments"]').attributes('disabled')).toBeDefined();
+
+    await wrapper.find('input[type="checkbox"]').setValue(true);
+    expect(wrapper.find('[data-test="export-filtered-excel"]').attributes('disabled')).toBeDefined();
+    await wrapper.find('[data-test="preview-filtered-export"]').trigger('click');
+
+    await vi.waitFor(() => expect(wrapper.text()).toContain('查询结果：1 条'));
+    expect(wrapper.text()).toContain('员工一');
+    expect(wrapper.text()).toContain('五月命中');
+    expect(wrapper.text()).toContain('JF-001');
+    expect(wrapper.find('[data-test="export-filtered-excel"]').attributes('disabled')).toBeUndefined();
+    expect(wrapper.find('[data-test="export-filtered-attachments"]').attributes('disabled')).toBeUndefined();
+
+    await wrapper.find('[aria-label="批次ID"]').setValue('5');
+    await wrapper.find('[data-test="load-batch"]').trigger('click');
+    await vi.waitFor(() => expect(wrapper.text()).toContain('当前批次：五月批次'));
+    expect(wrapper.text()).toContain('导出当前批次 Excel');
+    expect(wrapper.text()).toContain('下载当前批次附件压缩包');
+    expect(wrapper.text()).toContain('归档当前批次');
+  });
+
+  it('shows filtered export preview errors without leaving the page stuck', async () => {
+    vi.mocked(http.get).mockImplementation((url: string) => {
+      if (url === '/admin/batches') return Promise.resolve({ data: [] });
+      if (url === '/oa-numbers') return Promise.resolve({ data: [{ id: 1, number: 'JF-001' }] });
+      if (url === '/admin/batches/export/preview') return Promise.reject({ response: { data: { message: '请先登录' } } });
+      return Promise.resolve({ data: [] });
+    });
+
+    const wrapper = mount(BatchAdminView, { global: { stubs: ['el-table', 'el-table-column', 'el-form', 'el-form-item', 'el-input', 'el-button'] } });
+    await vi.waitFor(() => expect(wrapper.text()).toContain('JF-001'));
+
+    await wrapper.find('input[type="checkbox"]').setValue(true);
+    await wrapper.find('[data-test="preview-filtered-export"]').trigger('click');
+
+    await vi.waitFor(() => expect(wrapper.text()).toContain('请先登录'));
+    expect(wrapper.find('[data-test="preview-filtered-export"]').text()).toBe('查询结果');
+  });
+
   it('adds selected records to a batch and downloads Excel and attachment exports', async () => {
     Object.defineProperty(URL, 'createObjectURL', { value: vi.fn(), configurable: true });
     Object.defineProperty(URL, 'revokeObjectURL', { value: vi.fn(), configurable: true });

@@ -13,6 +13,7 @@ const navigationItems = [
   { to: '/admin/reimbursements', label: '报销管理', icon: '管理', roles: ['ADMIN', 'SPECIALIST'] as const },
   { to: '/admin/oa', label: '经费编码', icon: '经费', roles: ['ADMIN', 'SPECIALIST'] as const },
   { to: '/admin/batches', label: '批次管理', icon: '批次', roles: ['ADMIN', 'SPECIALIST'] as const },
+  { to: '/admin/stats', label: '统计', icon: '统计', roles: ['ADMIN', 'SPECIALIST'] as const },
   { to: '/admin/users', label: '用户管理', icon: '用户', roles: ['ADMIN'] as const },
   { to: '/admin/categories', label: '分类管理', icon: '分类', roles: ['ADMIN', 'SPECIALIST'] as const }
 ];

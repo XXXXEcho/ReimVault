@@ -36,6 +36,15 @@ public class AdminReimbursementController {
         return service.listAll(new ReimbursementDtos.AdminListFilter(employeeId, categoryId, status, from, to, reimbursed, oaId));
     }
 
+    @GetMapping("/stats")
+    ReimbursementDtos.StatsResponse stats(
+            @RequestParam(required = false) List<Long> oaIds,
+            @RequestParam(required = false) List<Long> batchIds) {
+        return service.computeStats(
+                oaIds != null ? oaIds : List.of(),
+                batchIds != null ? batchIds : List.of());
+    }
+
     @GetMapping("/{id}")
     ReimbursementDtos.RecordResponse get(@PathVariable Long id) {
         return service.getAny(id);

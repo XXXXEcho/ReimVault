@@ -8,6 +8,7 @@ import CategoryAdminView from './views/admin/CategoryAdminView.vue';
 import ReimbursementAdminView from './views/admin/ReimbursementAdminView.vue';
 import ReimbursementDetailView from './views/admin/ReimbursementDetailView.vue';
 import BatchAdminView from './views/admin/BatchAdminView.vue';
+import StatsAdminView from './views/admin/StatsAdminView.vue';
 import OaAdminView from './views/admin/OaAdminView.vue';
 
 const routes = [
@@ -21,7 +22,8 @@ const routes = [
   { path: '/admin/reimbursements', component: ReimbursementAdminView, meta: { requiresManagement: true } },
   { path: '/admin/reimbursements/:id', component: ReimbursementDetailView, meta: { requiresManagement: true } },
   { path: '/admin/oa', component: OaAdminView, meta: { requiresManagement: true } },
-  { path: '/admin/batches', component: BatchAdminView, meta: { requiresManagement: true } }
+  { path: '/admin/batches', component: BatchAdminView, meta: { requiresManagement: true } },
+  { path: '/admin/stats', component: StatsAdminView, meta: { requiresManagement: true } }
 ];
 
 export function createAppRouter(history: RouterHistory = createWebHistory()) {

@@ -1,4 +1,5 @@
 import http from './http';
+import type { ReimbursementRecord } from './reimbursements';
 
 export interface BatchItem {
   id: number;
@@ -53,16 +54,21 @@ export function ensureMonthlyBatch() {
   return http.post<Batch>('/admin/batches/monthly');
 }
 
-export function exportFilteredExcel(oaIds: number[], months: string[]) {
+function filteredParams(oaIds: number[], months: string[]) {
   const params = new URLSearchParams();
   if (oaIds.length) params.set('oaIds', oaIds.join(','));
   if (months.length) params.set('months', months.join(','));
-  return http.get<Blob>('/admin/batches/export/excel', { params, responseType: 'blob' });
+  return params;
+}
+
+export function previewFilteredExport(oaIds: number[], months: string[]) {
+  return http.get<ReimbursementRecord[]>('/admin/batches/export/preview', { params: filteredParams(oaIds, months) });
+}
+
+export function exportFilteredExcel(oaIds: number[], months: string[]) {
+  return http.get<Blob>('/admin/batches/export/excel', { params: filteredParams(oaIds, months), responseType: 'blob' });
 }
 
 export function exportFilteredAttachments(oaIds: number[], months: string[]) {
-  const params = new URLSearchParams();
-  if (oaIds.length) params.set('oaIds', oaIds.join(','));
-  if (months.length) params.set('months', months.join(','));
-  return http.get<Blob>('/admin/batches/export/attachments', { params, responseType: 'blob' });
+  return http.get<Blob>('/admin/batches/export/attachments', { params: filteredParams(oaIds, months), responseType: 'blob' });
 }

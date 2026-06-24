@@ -10,6 +10,7 @@ import com.company.reimbursement.user.User;
 import com.company.reimbursement.user.UserRepository;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.persistence.criteria.Predicate;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.time.YearMonth;
@@ -121,6 +122,13 @@ public class ReimbursementService {
     }
 
     @Transactional(readOnly = true)
+    public List<ReimbursementDtos.RecordResponse> previewFiltered(List<Long> oaIds, List<String> months) {
+        return listFiltered(oaIds, months).stream()
+                .map(this::response)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
     public List<ReimbursementRecord> listFiltered(List<Long> oaIds, List<String> months) {
         return records.findAll((root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
@@ -143,6 +151,47 @@ public class ReimbursementService {
             }
             return cb.and(predicates.toArray(Predicate[]::new));
         });
+    }
+
+    @Transactional(readOnly = true)
+    public ReimbursementDtos.StatsResponse computeStats(List<Long> oaIds, List<Long> batchIds) {
+        List<ReimbursementRecord> scoped = records.findAll((root, query, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
+            if (oaIds != null && !oaIds.isEmpty()) {
+                predicates.add(root.get("oa").get("id").in(oaIds));
+            }
+            if (batchIds != null && !batchIds.isEmpty()) {
+                predicates.add(root.get("batch").get("id").in(batchIds));
+            }
+            return cb.and(predicates.toArray(Predicate[]::new));
+        });
+
+        long totalCount = 0, reimbursedCount = 0, unreimbursedCount = 0, draftCount = 0;
+        BigDecimal totalAmount = BigDecimal.ZERO;
+        BigDecimal reimbursedAmount = BigDecimal.ZERO;
+        BigDecimal unreimbursedAmount = BigDecimal.ZERO;
+        BigDecimal draftAmount = BigDecimal.ZERO;
+        for (ReimbursementRecord record : scoped) {
+            BigDecimal amount = record.getAmount() != null ? record.getAmount() : BigDecimal.ZERO;
+            totalCount++;
+            totalAmount = totalAmount.add(amount);
+            boolean reimbursed = record.getReimbursedAt() != null || record.getStatus() == ReimbursementStatus.ARCHIVED;
+            if (record.getStatus() == ReimbursementStatus.DRAFT) {
+                draftCount++;
+                draftAmount = draftAmount.add(amount);
+            } else if (reimbursed) {
+                reimbursedCount++;
+                reimbursedAmount = reimbursedAmount.add(amount);
+            } else {
+                unreimbursedCount++;
+                unreimbursedAmount = unreimbursedAmount.add(amount);
+            }
+        }
+        return new ReimbursementDtos.StatsResponse(
+                totalCount, totalAmount,
+                reimbursedCount, reimbursedAmount,
+                unreimbursedCount, unreimbursedAmount,
+                draftCount, draftAmount);
     }
 
     @Transactional

@@ -1,5 +1,6 @@
 package com.company.reimbursement.export;
 
+import com.company.reimbursement.reimbursement.ReimbursementDtos;
 import com.company.reimbursement.reimbursement.ReimbursementRecord;
 import com.company.reimbursement.reimbursement.ReimbursementService;
 import java.util.Collections;
@@ -42,6 +43,15 @@ public class ExportController {
                 .contentType(MediaType.parseMediaType("application/zip"))
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"batch-" + id + "-attachments.zip\"")
                 .body(zipExportService.exportBatchAttachments(id));
+    }
+
+    @GetMapping("/export/preview")
+    List<ReimbursementDtos.RecordResponse> previewFiltered(
+            @RequestParam(required = false) List<Long> oaIds,
+            @RequestParam(required = false) List<String> months) {
+        return reimbursementService.previewFiltered(
+                oaIds != null ? oaIds : Collections.emptyList(),
+                months != null ? months : Collections.emptyList());
     }
 
     @GetMapping("/export/excel")

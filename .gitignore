@@ -12,3 +12,5 @@ findings.md
 progress.md
 task_plan.md
 tasks/
+.codegraph/
+tmp/
