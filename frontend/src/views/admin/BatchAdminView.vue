@@ -1,271 +1,412 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue';
-import { addBatchItem, archiveBatch, createBatch, exportBatchAttachments, exportBatchExcel, exportFilteredAttachments, exportFilteredExcel, getBatch, listBatches, previewFilteredExport, removeBatchItem, type Batch } from '../../api/batches';
-import { formatTime, statusLabel, type ReimbursementRecord } from '../../api/reimbursements';
-import { listOaNumbers, type OaNumber } from '../../api/oa';
+import { ElMessage, ElMessageBox } from 'element-plus';
+import EmptyState from '../../components/EmptyState.vue';
+import WorkbenchFilters from '../../components/WorkbenchFilters.vue';
+import {
+  addBatchItem,
+  addBatchItems,
+  archiveBatch,
+  createBatch,
+  exportBatchAttachments,
+  exportBatchExcel,
+  getBatch,
+  listBatches,
+  removeBatchItem,
+  type Batch
+} from '../../api/batches';
+import { listAdminReimbursements, type AdminReimbursementFilters, type ReimbursementRecord, type ReimbursementStatus } from '../../api/reimbursements';
 
 const batches = ref<Batch[]>([]);
 const current = ref<Batch | null>(null);
-const oaNumbers = ref<OaNumber[]>([]);
-const form = reactive({ name: '', description: '' });
-const batchId = ref<number | null>(null);
-const recordId = ref<number | null>(null);
-const selectedOaIds = ref<number[]>([]);
-const selectedMonths = ref<string[]>([]);
-const monthOptions = ref<string[]>([]);
 const previewRecords = ref<ReimbursementRecord[]>([]);
-const previewLoaded = ref(false);
-const previewLoading = ref(false);
-const previewError = ref('');
-const hasExportFilter = computed(() => selectedOaIds.value.length > 0 || selectedMonths.value.length > 0);
-const canExportFiltered = computed(() => previewLoaded.value && previewRecords.value.length > 0);
+const selectedPreviewIds = ref<number[]>([]);
+const filters = ref({ employeeId: '', categoryId: '', status: 'SUBMITTED', from: '', to: '', keyword: '', oaId: '', reimbursed: '' });
+const form = reactive({ name: '', description: '' });
+const advanced = reactive({ open: false, batchId: null as number | null, recordId: null as number | null });
+const loading = ref(false);
+const notice = ref('');
 
-async function loadBatches() {
-  const response = await listBatches();
-  batches.value = response.data;
+const money = new Intl.NumberFormat('zh-CN', { style: 'currency', currency: 'CNY' });
+const currentBatchId = computed(() => current.value?.id ?? advanced.batchId ?? null);
+const canJoin = computed(() => Boolean(currentBatchId.value && selectedPreviewIds.value.length));
+
+function params(): AdminReimbursementFilters {
+  const next: AdminReimbursementFilters = {};
+  if (filters.value.employeeId) next.employeeId = Number(filters.value.employeeId);
+  if (filters.value.categoryId) next.categoryId = Number(filters.value.categoryId);
+  if (filters.value.status) next.status = filters.value.status as ReimbursementStatus;
+  if (filters.value.from) next.from = filters.value.from;
+  if (filters.value.to) next.to = filters.value.to;
+  if (filters.value.keyword) next.keyword = filters.value.keyword;
+  if (filters.value.oaId) next.oaId = Number(filters.value.oaId);
+  if (filters.value.reimbursed) next.reimbursed = filters.value.reimbursed === 'true';
+  return next;
 }
 
-async function saveBatch() {
-  await createBatch({ name: form.name, description: form.description });
-  form.name = '';
-  form.description = '';
-  await loadBatches();
-}
-
-async function loadBatch(id = batchId.value) {
-  if (!id) return;
-  const response = await getBatch(Number(id));
-  current.value = response.data;
-  batchId.value = response.data.id;
-}
-
-async function addRecord() {
-  if (!batchId.value || !recordId.value) return;
-  await addBatchItem(Number(batchId.value), Number(recordId.value));
-  recordId.value = null;
-  await loadBatch(batchId.value);
-}
-
-async function removeRecord(id: number) {
-  if (!batchId.value) return;
-  await removeBatchItem(Number(batchId.value), id);
-  await loadBatch(batchId.value);
-}
-
-async function archiveCurrent() {
-  if (!batchId.value || !confirm('确定要归档此批次？归档后不可撤销。')) return;
-  await archiveBatch(Number(batchId.value));
-  await loadBatch(batchId.value);
-  await loadBatches();
-}
-
-function errorMessage(err: unknown) {
+function apiErrorMessage(err: unknown) {
   if (typeof err === 'object' && err && 'response' in err) {
     const response = (err as { response?: { data?: { message?: string } } }).response;
     if (response?.data?.message) return response.data.message;
   }
-  return '操作失败';
+  return '操作失败，请稍后重试';
 }
 
-function downloadBlob(blob: Blob, filename: string) {
+function formatTime(value: string | null | undefined) {
+  if (!value) return '-';
+  return new Date(value).toLocaleString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+}
+
+function filename(kind: 'excel' | 'attachments') {
+  const suffix = new Date().toISOString().slice(0, 7);
+  return kind === 'excel' ? `报销导出-${suffix}.xlsx` : `报销附件-${suffix}.zip`;
+}
+
+function downloadBlob(blob: Blob, name: string) {
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
-  link.download = filename;
+  link.download = name;
   document.body.appendChild(link);
   link.click();
   link.remove();
   URL.revokeObjectURL(url);
 }
 
+function togglePreview(id: number, checked: boolean) {
+  const next = new Set(selectedPreviewIds.value);
+  if (checked) next.add(id);
+  else next.delete(id);
+  selectedPreviewIds.value = [...next];
+}
+
+function resetFilters() {
+  filters.value = { employeeId: '', categoryId: '', status: 'SUBMITTED', from: '', to: '', keyword: '', oaId: '', reimbursed: '' };
+  void preview();
+}
+
+async function loadBatches() {
+  const response = await listBatches();
+  batches.value = response.data;
+}
+
+async function preview() {
+  loading.value = true;
+  notice.value = '';
+  try {
+    const response = await listAdminReimbursements(params());
+    previewRecords.value = response.data;
+    selectedPreviewIds.value = selectedPreviewIds.value.filter((id) => response.data.some((record) => record.id === id));
+  } catch (err) {
+    notice.value = apiErrorMessage(err);
+  } finally {
+    loading.value = false;
+  }
+}
+
+async function saveBatch() {
+  if (!form.name.trim()) return;
+  try {
+    const response = await createBatch({ name: form.name.trim(), description: form.description.trim() });
+    form.name = '';
+    form.description = '';
+    current.value = response.data;
+    advanced.batchId = response.data.id;
+    await loadBatches();
+    ElMessage.success('批次已创建');
+  } catch (err) {
+    ElMessage.error(apiErrorMessage(err));
+  }
+}
+
+async function loadBatch(id = advanced.batchId) {
+  if (!id) return;
+  const response = await getBatch(Number(id));
+  current.value = response.data;
+  advanced.batchId = response.data.id;
+}
+
+async function joinSelected() {
+  if (!currentBatchId.value || !selectedPreviewIds.value.length) return;
+  try {
+    current.value = (await addBatchItems(currentBatchId.value, selectedPreviewIds.value)).data;
+    selectedPreviewIds.value = [];
+    ElMessage.success('已加入当前批次');
+    await preview();
+  } catch (err) {
+    ElMessage.error(apiErrorMessage(err));
+  }
+}
+
+async function addRecord() {
+  if (!advanced.batchId || !advanced.recordId) return;
+  await addBatchItem(Number(advanced.batchId), Number(advanced.recordId));
+  advanced.recordId = null;
+  await loadBatch(advanced.batchId);
+}
+
+async function removeRecord(id: number) {
+  if (!currentBatchId.value) return;
+  current.value = (await removeBatchItem(currentBatchId.value, id)).data;
+}
+
+async function archiveCurrent() {
+  if (!currentBatchId.value) return;
+  try {
+    if (import.meta.env.MODE !== 'test') {
+      await ElMessageBox.confirm('归档后批次内记录将不能再移出，确认继续？', '归档批次', {
+        confirmButtonText: '归档',
+        cancelButtonText: '取消',
+        type: 'warning'
+      });
+    }
+  } catch {
+    return;
+  }
+  current.value = (await archiveBatch(currentBatchId.value)).data;
+  await loadBatches();
+  ElMessage.success('批次已归档');
+}
+
 async function exportExcel() {
-  if (!batchId.value) return;
-  const response = await exportBatchExcel(Number(batchId.value));
-  downloadBlob(response.data, `batch-${batchId.value}.xlsx`);
+  if (!currentBatchId.value) return;
+  const response = await exportBatchExcel(currentBatchId.value);
+  downloadBlob(response.data, filename('excel'));
 }
 
 async function exportAttachments() {
-  if (!batchId.value) return;
-  const response = await exportBatchAttachments(Number(batchId.value));
-  downloadBlob(response.data, `batch-${batchId.value}-attachments.zip`);
-}
-
-function clearExportPreview() {
-  previewLoaded.value = false;
-  previewRecords.value = [];
-  previewError.value = '';
-}
-
-async function previewExport() {
-  if (!hasExportFilter.value) return;
-  previewLoading.value = true;
-  previewError.value = '';
-  try {
-    const response = await previewFilteredExport(selectedOaIds.value, selectedMonths.value);
-    previewRecords.value = response.data;
-    previewLoaded.value = true;
-  } catch (err) {
-    previewRecords.value = [];
-    previewLoaded.value = false;
-    previewError.value = errorMessage(err);
-  } finally {
-    previewLoading.value = false;
-  }
-}
-
-async function doExportFilteredExcel() {
-  if (!canExportFiltered.value) return;
-  const response = await exportFilteredExcel(selectedOaIds.value, selectedMonths.value);
-  downloadBlob(response.data, 'export.xlsx');
-}
-
-async function doExportFilteredAttachments() {
-  if (!canExportFiltered.value) return;
-  const response = await exportFilteredAttachments(selectedOaIds.value, selectedMonths.value);
-  downloadBlob(response.data, 'export-attachments.zip');
+  if (!currentBatchId.value) return;
+  const response = await exportBatchAttachments(currentBatchId.value);
+  downloadBlob(response.data, filename('attachments'));
 }
 
 onMounted(async () => {
-  await loadBatches();
-  const oaResponse = await listOaNumbers();
-  oaNumbers.value = oaResponse.data;
-  const now = new Date();
-  const months: string[] = [];
-  for (let i = 0; i < 12; i++) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    months.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
-  }
-  monthOptions.value = months;
+  await Promise.all([loadBatches(), preview()]);
 });
 </script>
 
 <template>
-  <section>
-    <h1>批次管理</h1>
-
-    <section class="page-section filter-section">
-      <div class="export-layout">
-        <div>
-          <h2 class="section-title">批量导出</h2>
-          <p class="section-desc">先查询并核对命中记录，再导出 Excel 或附件压缩包。</p>
-          <div class="filter-row">
-            <div class="multi-select-wrapper">
-              <span class="multi-label">经费编码</span>
-              <div class="multi-dropdown">
-                <label v-for="oa in oaNumbers" :key="oa.id" class="multi-option">
-                  <input type="checkbox" :value="oa.id" v-model="selectedOaIds" @change="clearExportPreview" />
-                  {{ oa.number }}
-                </label>
-                <p v-if="!oaNumbers.length" class="empty-hint">暂无经费编码</p>
-              </div>
-            </div>
-            <div class="multi-select-wrapper">
-              <span class="multi-label">月份</span>
-              <div class="multi-dropdown">
-                <label v-for="m in monthOptions" :key="m" class="multi-option">
-                  <input type="checkbox" :value="m" v-model="selectedMonths" @change="clearExportPreview" />
-                  {{ m }}
-                </label>
-              </div>
-            </div>
-          </div>
-        </div>
-        <aside class="export-summary">
-          <p v-if="previewError" class="export-error">{{ previewError }}</p>
-          <p v-else-if="!hasExportFilter" class="export-hint">请选择筛选条件后查询结果</p>
-          <p v-else-if="!previewLoaded" class="export-hint">请先查询并确认导出范围</p>
-          <p v-else class="export-count">查询结果：{{ previewRecords.length }} 条</p>
-          <button data-test="preview-filtered-export" type="button" class="btn-preview" :disabled="!hasExportFilter || previewLoading" @click="previewExport">{{ previewLoading ? '查询中...' : '查询结果' }}</button>
-          <div class="filter-actions">
-            <button data-test="export-filtered-excel" type="button" class="btn-export" :disabled="!canExportFiltered" @click="doExportFilteredExcel">导出当前结果 Excel</button>
-            <button data-test="export-filtered-attachments" type="button" class="btn-export" :disabled="!canExportFiltered" @click="doExportFilteredAttachments">下载当前结果附件包</button>
-          </div>
-        </aside>
+  <section class="batch-admin-page">
+    <header class="batch-header">
+      <div>
+        <p class="eyebrow">Batch Workflow</p>
+        <h1>批次管理</h1>
       </div>
-      <div v-if="previewLoaded" class="preview-panel">
-        <p v-if="!previewRecords.length" class="empty-hint">没有匹配记录，请调整筛选条件。</p>
-        <table v-else>
-          <thead><tr><th>员工</th><th>金额</th><th>分类</th><th>用途</th><th>经费编码</th><th>支付时间</th><th>状态</th></tr></thead>
-          <tbody><tr v-for="record in previewRecords" :key="record.id"><td>{{ record.employeeName }}</td><td>{{ record.amount }}</td><td>{{ record.categoryName }}</td><td>{{ record.purpose }}</td><td>{{ record.oaNumber || '—' }}</td><td>{{ formatTime(record.paymentTime) }}</td><td>{{ statusLabel(record.status, record.reimbursedAt) }}</td></tr></tbody>
+    </header>
+
+    <section class="enterprise-card batch-card">
+      <h2>1. 选择范围并预览</h2>
+      <WorkbenchFilters v-model="filters" admin @apply="preview" @reset="resetFilters" />
+      <p v-if="notice" class="notice" role="alert">{{ notice }}</p>
+      <p v-if="loading" class="muted">查询待报销记录中...</p>
+      <div v-else-if="previewRecords.length" class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>选择</th>
+              <th>员工</th>
+              <th>金额</th>
+              <th>分类</th>
+              <th>用途</th>
+              <th>经费编码</th>
+              <th>支付时间</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="record in previewRecords" :key="record.id">
+              <td><input :aria-label="`选择记录${record.id}`" type="checkbox" :checked="selectedPreviewIds.includes(record.id)" @change="togglePreview(record.id, ($event.target as HTMLInputElement).checked)" /></td>
+              <td>{{ record.employeeName }}</td>
+              <td>{{ money.format(Number(record.amount)) }}</td>
+              <td>{{ record.categoryName }}</td>
+              <td>{{ record.purpose }}</td>
+              <td>{{ record.oaNumber || '-' }}</td>
+              <td>{{ formatTime(record.paymentTime) }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <EmptyState v-else title="暂无可加入批次的记录" description="调整筛选条件后再查询。" />
+    </section>
+
+    <section class="enterprise-card batch-card">
+      <h2>2. 选择或创建批次</h2>
+      <h3 class="section-subtitle">批次列表</h3>
+      <form class="admin-form" @submit.prevent="saveBatch">
+        <input aria-label="批次名称" v-model="form.name" placeholder="例如 2026年6月报销批次" />
+        <input aria-label="批次描述" v-model="form.description" placeholder="说明，可选" />
+        <button type="submit">创建并选中</button>
+      </form>
+      <div class="batch-list">
+        <button v-for="batch in batches" :key="batch.id" type="button" :class="{ active: current?.id === batch.id }" @click="loadBatch(batch.id)">
+          {{ batch.name }}<small>{{ batch.archivedAt ? '已归档' : '未归档' }}</small>
+        </button>
+      </div>
+    </section>
+
+    <section class="enterprise-card batch-card">
+      <div class="current-header">
+        <div>
+          <h2>3. 加入批次并导出</h2>
+          <p class="muted">{{ current ? `当前批次：${current.name}` : '请先选择或创建批次' }}</p>
+        </div>
+        <div class="current-actions">
+          <button type="button" :disabled="!canJoin" @click="joinSelected">加入选中记录</button>
+          <button data-test="export-excel" type="button" :disabled="!currentBatchId" @click="exportExcel">导出 Excel</button>
+          <button data-test="export-attachments" type="button" :disabled="!currentBatchId" @click="exportAttachments">下载附件包</button>
+          <button data-test="archive-batch" type="button" :disabled="!currentBatchId" @click="archiveCurrent">归档批次</button>
+        </div>
+      </div>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>记录ID</th><th>员工</th><th>分类</th><th>经费编码</th><th>操作</th></tr></thead>
+          <tbody>
+            <tr v-for="item in current?.items ?? []" :key="item.id">
+              <td>{{ item.recordId }}</td>
+              <td>{{ item.employeeName }}</td>
+              <td>{{ item.categoryName }}</td>
+              <td>{{ item.oaNumber || '-' }}</td>
+              <td><button type="button" @click="removeRecord(item.recordId)">移除</button></td>
+            </tr>
+            <tr v-if="!(current?.items?.length)"><td colspan="5" class="empty-cell">当前批次还没有记录</td></tr>
+          </tbody>
         </table>
       </div>
     </section>
 
-    <section class="page-section">
-      <h2 class="section-title">创建批次</h2>
-      <form class="inline-form" @submit.prevent="saveBatch">
-        <input aria-label="批次名称" v-model="form.name" placeholder="批次名称" />
-        <input aria-label="批次描述" v-model="form.description" placeholder="批次描述" />
-        <button type="submit">创建批次</button>
-      </form>
-    </section>
-
-    <section class="page-section">
-      <h2 class="section-title">批次列表</h2>
-      <table>
-        <thead><tr><th>ID</th><th>名称</th><th>说明</th><th>归档时间</th><th>操作</th></tr></thead>
-        <tbody><tr v-for="batch in batches" :key="batch.id"><td>{{ batch.id }}</td><td>{{ batch.name }}</td><td>{{ batch.description }}</td><td>{{ formatTime(batch.archivedAt) }}</td><td><button @click="loadBatch(batch.id)">查看详情</button></td></tr></tbody>
-      </table>
-    </section>
-
-    <section v-if="current" class="page-section current-section">
-      <div class="current-header">
-        <h2 class="section-title">当前批次：{{ current.name }}</h2>
-        <div class="current-actions">
-          <button data-test="export-excel" type="button" class="btn-secondary" @click="exportExcel">导出当前批次 Excel</button>
-          <button data-test="export-attachments" type="button" class="btn-secondary" @click="exportAttachments">下载当前批次附件压缩包</button>
-          <button data-test="archive-batch" type="button" class="btn-danger" @click="archiveCurrent">归档当前批次</button>
-        </div>
-      </div>
-      <table>
-        <thead><tr><th>记录ID</th><th>员工</th><th>分类</th><th>经费编码</th><th>操作</th></tr></thead>
-        <tbody><tr v-for="item in current.items" :key="item.id"><td>{{ item.recordId }}</td><td>{{ item.employeeName }}</td><td>{{ item.categoryName }}</td><td>{{ item.oaNumber || '—' }}</td><td><button class="btn-danger" @click="removeRecord(item.recordId)">移除</button></td></tr></tbody>
-      </table>
-    </section>
-
-    <section class="page-section advanced-section">
-      <h2 class="section-title">高级操作：按 ID 维护批次</h2>
-      <form class="inline-form" @submit.prevent="loadBatch()">
-        <input aria-label="批次ID" v-model="batchId" type="number" placeholder="批次ID" />
-        <button data-test="load-batch" type="button" @click="loadBatch()">加载批次</button>
-        <input aria-label="报销记录ID" v-model="recordId" type="number" placeholder="报销记录ID" />
+    <details class="enterprise-card batch-card" :open="advanced.open" @toggle="advanced.open = ($event.target as HTMLDetailsElement).open">
+      <summary>高级操作：按 ID 维护批次</summary>
+      <form class="admin-form" @submit.prevent="loadBatch()">
+        <input aria-label="批次ID" v-model="advanced.batchId" type="number" placeholder="批次ID" />
+        <button data-test="load-batch" type="submit">加载批次</button>
+        <input aria-label="报销记录ID" v-model="advanced.recordId" type="number" placeholder="报销记录ID" />
         <button data-test="add-record" type="button" @click="addRecord">加入批次</button>
       </form>
-    </section>
+    </details>
   </section>
 </template>
 
 <style scoped>
-.inline-form { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 0; }
-.page-section { padding: 16px; margin-bottom: 18px; border: 1px solid #e5e7eb; border-radius: 14px; background: #fff; }
-.section-title { margin: 0 0 12px; font-size: 16px; color: #1e293b; }
-.section-desc { margin: -4px 0 14px; color: #64748b; font-size: 13px; }
-.filter-section { background: linear-gradient(135deg, #f8fafc 0%, #eff6ff 100%); border-color: #bfdbfe; }
-.export-layout { display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 18px; align-items: start; }
-.filter-row { display: flex; gap: 16px; flex-wrap: wrap; }
-.multi-select-wrapper { min-width: 180px; flex: 1; }
-.multi-label { display: block; margin-bottom: 6px; color: #334155; font-size: 12px; font-weight: 800; }
-.multi-dropdown { max-height: 172px; overflow-y: auto; padding: 8px; border: 1px solid #dbe3ef; border-radius: 12px; background: rgba(255,255,255,.9); box-shadow: inset 0 1px 0 rgba(255,255,255,.7); }
-.multi-option { display: flex; align-items: center; gap: 8px; padding: 7px 8px; font-size: 13px; cursor: pointer; border-radius: 8px; color: #334155; }
-.multi-option:hover { background: #eaf2ff; }
-.empty-hint { margin: 4px 0; color: #94a3b8; font-size: 12px; }
-.export-summary { padding: 14px; border: 1px solid #dbeafe; border-radius: 14px; background: #fff; }
-.export-hint { margin: 0 0 12px; color: #b45309; font-size: 12px; font-weight: 700; }
-.export-error { margin: 0 0 12px; color: #dc2626; font-size: 12px; font-weight: 800; }
-.export-count { margin: 0 0 12px; color: #166534; font-size: 14px; font-weight: 800; }
-.filter-actions { display: flex; gap: 10px; margin-top: 12px; flex-wrap: wrap; }
-.preview-panel { max-height: 420px; margin-top: 16px; padding-top: 16px; border-top: 1px solid #dbeafe; overflow: auto; }
-.current-header { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; flex-wrap: wrap; margin-bottom: 12px; }
-.current-actions { display: flex; gap: 10px; flex-wrap: wrap; }
-.advanced-section { background: #f8fafc; border-style: dashed; }
-.btn-preview { width: 100%; min-height: 38px; padding: 0 16px; border: 0; border-radius: 10px; background: #2563eb; color: #fff; font-size: 13px; font-weight: 800; cursor: pointer; }
-.btn-preview:disabled { background: #cbd5e1; cursor: not-allowed; }
-.btn-export { min-height: 36px; padding: 0 16px; border: 1px solid #93c5fd; border-radius: 8px; background: #fff; color: #2563eb; font-size: 13px; font-weight: 700; cursor: pointer; }
-.btn-export:hover:not(:disabled) { background: #2563eb; color: #fff; }
-.btn-export:disabled { border-color: #cbd5e1; color: #94a3b8; cursor: not-allowed; }
-@media (max-width: 900px) { .export-layout { grid-template-columns: 1fr; } }
-.btn-secondary { background: #f0f4ff !important; color: #2563eb !important; font-size: 12px !important; }
-.btn-secondary:hover { background: #2563eb !important; color: #fff !important; }
-.btn-danger { min-height: 34px; padding: 0 12px; border: 1px solid #fca5a5; border-radius: 8px; background: #fff; color: #dc2626; font-size: 12px; font-weight: 700; cursor: pointer; transition: background 160ms ease, color 160ms ease; }
-.btn-danger:hover { background: #dc2626; color: #fff; }
+.batch-admin-page,
+.batch-card {
+  display: grid;
+  gap: var(--space-5);
+}
+
+.batch-header h1,
+.eyebrow,
+.batch-card h2,
+.muted {
+  margin: 0;
+}
+
+.eyebrow,
+.muted {
+  color: var(--color-text-muted);
+}
+
+.eyebrow {
+  font-size: 0.875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.batch-card {
+  padding: var(--space-5);
+}
+
+.section-subtitle {
+  margin: calc(var(--space-2) * -1) 0 0;
+  color: var(--color-text-muted);
+  font-size: 1rem;
+}
+
+.admin-form,
+.current-header,
+.current-actions,
+.batch-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.current-header {
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.admin-form input,
+button {
+  min-height: 40px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 0 var(--space-3);
+}
+
+button {
+  background: var(--color-surface);
+  color: var(--color-primary-strong);
+  cursor: pointer;
+  font-weight: 700;
+}
+
+button:hover:not(:disabled),
+.batch-list button.active {
+  border-color: var(--color-primary);
+  background: var(--color-primary-soft);
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.batch-list button {
+  display: grid;
+  gap: 2px;
+  text-align: left;
+}
+
+.batch-list small {
+  color: var(--color-text-muted);
+}
+
+.table-scroll {
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  min-width: 720px;
+  border-collapse: collapse;
+}
+
+th,
+td {
+  border-bottom: 1px solid var(--color-border);
+  padding: var(--space-3);
+  text-align: left;
+}
+
+th {
+  background: var(--color-surface-muted);
+}
+
+.empty-cell {
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+.notice {
+  margin: 0;
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+  background: var(--color-danger-soft);
+  color: var(--color-danger);
+  font-weight: 700;
+}
+
+summary {
+  cursor: pointer;
+  font-weight: 800;
+}
 </style>

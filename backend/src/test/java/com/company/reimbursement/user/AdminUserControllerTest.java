@@ -108,4 +108,11 @@ class AdminUserControllerTest {
         mvc.perform(get("/api/admin/users"))
                 .andExpect(status().isForbidden());
     }
+
+    @Test
+    @WithMockUser(username = "specialist", roles = "SPECIALIST")
+    void specialistCannotAccessUserManagement() throws Exception {
+        mvc.perform(get("/api/admin/users"))
+                .andExpect(status().isForbidden());
+    }
 }

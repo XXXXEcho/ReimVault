@@ -31,9 +31,10 @@ public class AdminReimbursementController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
             @RequestParam(required = false) Boolean reimbursed,
-            @RequestParam(required = false) Long oaId
+            @RequestParam(required = false) Long oaId,
+            @RequestParam(required = false) String keyword
     ) {
-        return service.listAll(new ReimbursementDtos.AdminListFilter(employeeId, categoryId, status, from, to, reimbursed, oaId));
+        return service.listAll(new ReimbursementDtos.AdminListFilter(employeeId, categoryId, status, from, to, reimbursed, oaId, keyword));
     }
 
     @GetMapping("/stats")
@@ -78,6 +79,11 @@ public class AdminReimbursementController {
     @PostMapping("/archive")
     void archive(@RequestBody ArchiveRequest request) {
         service.archiveRecords(request.ids());
+    }
+
+    @PostMapping("/bulk-action")
+    List<ReimbursementDtos.RecordResponse> bulkAction(@RequestBody ReimbursementDtos.BulkActionRequest request) {
+        return service.bulkAction(request);
     }
 
     public record ArchiveRequest(List<Long> ids) {

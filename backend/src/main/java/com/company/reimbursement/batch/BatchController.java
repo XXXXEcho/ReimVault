@@ -42,6 +42,11 @@ public class BatchController {
         return service.addItem(id, recordId);
     }
 
+    @PostMapping("/{id}/items")
+    BatchDtos.BatchResponse addItems(@PathVariable Long id, @RequestBody BatchDtos.AddBatchItemsRequest request) {
+        return service.addItems(id, request.recordIds());
+    }
+
     @DeleteMapping("/{id}/items/{recordId}")
     BatchDtos.BatchResponse removeItem(@PathVariable Long id, @PathVariable Long recordId) {
         return service.removeItem(id, recordId);

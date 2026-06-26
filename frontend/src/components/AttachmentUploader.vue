@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
-import { uploadAttachment, deleteAttachment, type AttachmentType, type ReimbursementAttachment } from '../api/reimbursements';
+import { deleteAttachment, uploadAttachment, type AttachmentRecord, type AttachmentType } from '../api/reimbursements';
 
 const props = defineProps<{
   label: string;
@@ -8,20 +8,22 @@ const props = defineProps<{
   recordId?: number | null;
   attachmentType?: AttachmentType;
   modelValue?: File[];
-  attachments?: ReimbursementAttachment[];
+  attachments?: AttachmentRecord[];
   dataTest?: string;
   readonly?: boolean;
 }>();
 
 const emit = defineEmits<{
   'update:modelValue': [File[]];
-  uploaded: [ReimbursementAttachment];
+  uploaded: [AttachmentRecord];
   deleted: [number];
 }>();
 
 const title = computed(() => `${props.label}${props.required ? '（必填）' : '（选填）'}`);
 const localPreviews = ref<{ name: string; url: string; image: boolean }[]>([]);
 const largePreview = ref<{ name: string; url: string } | null>(null);
+const uploading = ref(false);
+const error = ref('');
 
 function clearLocalPreviews() {
   for (const preview of localPreviews.value) URL.revokeObjectURL(preview.url);
@@ -43,7 +45,7 @@ function attachmentUrl(id: number) {
   return `/api/attachments/${id}`;
 }
 
-function isImage(attachment: ReimbursementAttachment) {
+function isImage(attachment: AttachmentRecord) {
   return attachment.contentType.startsWith('image/');
 }
 
@@ -55,19 +57,35 @@ function closeLargePreview() {
   largePreview.value = null;
 }
 
+function apiErrorMessage(err: unknown) {
+  if (typeof err === 'object' && err && 'response' in err) {
+    const response = (err as { response?: { data?: { message?: string } } }).response;
+    if (response?.data?.message) return response.data.message;
+  }
+  return '上传失败，请稍后重试';
+}
+
 async function chooseFiles(event: Event) {
   const input = event.target as HTMLInputElement;
   const files = Array.from(input.files ?? []);
   emit('update:modelValue', files);
-  if (props.recordId && props.attachmentType) {
-    const responses = await Promise.all(files.map((file) => uploadAttachment(props.recordId as number, props.attachmentType as AttachmentType, file)));
-    for (const response of responses) emit('uploaded', response.data);
-    emit('update:modelValue', []);
-    input.value = '';
+  if (props.recordId && props.attachmentType && files.length) {
+    uploading.value = true;
+    error.value = '';
+    try {
+      const responses = await Promise.all(files.map((file) => uploadAttachment(props.recordId as number, props.attachmentType as AttachmentType, file)));
+      for (const response of responses) emit('uploaded', response.data);
+      emit('update:modelValue', []);
+      input.value = '';
+    } catch (err) {
+      error.value = apiErrorMessage(err);
+    } finally {
+      uploading.value = false;
+    }
   }
 }
 
-async function removeAttachment(attachment: ReimbursementAttachment) {
+async function removeAttachment(attachment: AttachmentRecord) {
   await deleteAttachment(attachment.id);
   emit('deleted', attachment.id);
 }
@@ -76,6 +94,7 @@ async function removeAttachment(attachment: ReimbursementAttachment) {
 <template>
   <section class="uploader">
     <strong>{{ title }}</strong>
+    <p class="uploader__hint">支持 JPG、PNG、WebP、PDF，可一次选择多份。</p>
     <div v-if="attachments?.length || localPreviews.length" class="attachment-preview-list masonry-preview-list">
       <div v-for="attachment in attachments" :key="attachment.id" class="attachment-preview masonry-preview-card">
         <button v-if="isImage(attachment)" type="button" class="image-preview-button" @click="openLargePreview(attachment.originalFilename, attachmentUrl(attachment.id))">
@@ -91,7 +110,20 @@ async function removeAttachment(attachment: ReimbursementAttachment) {
         <span v-else>{{ preview.name }}</span>
       </div>
     </div>
-    <input v-if="!readonly" :data-test="dataTest" type="file" multiple @change="chooseFiles" />
+    <input
+      v-if="!readonly"
+      :data-test="dataTest"
+      type="file"
+      accept="image/png,image/jpeg,image/webp,application/pdf,.png,.jpg,.jpeg,.webp,.pdf"
+      multiple
+      :disabled="uploading"
+      @change="chooseFiles"
+    />
+    <p v-if="uploading" class="uploader__hint">上传中...</p>
+    <p v-if="error" class="uploader__error" role="alert">{{ error }}</p>
+    <ul v-if="modelValue?.length" class="uploader__files">
+      <li v-for="file in modelValue" :key="`${file.name}-${file.size}`">{{ file.name }}</li>
+    </ul>
     <div v-if="largePreview" class="large-preview" role="dialog" aria-modal="true" @click.self="closeLargePreview">
       <div class="large-preview-panel expanded-preview-panel">
         <div class="large-preview-header">
@@ -107,6 +139,10 @@ async function removeAttachment(attachment: ReimbursementAttachment) {
 
 <style scoped>
 .uploader { display: grid; gap: 8px; padding: 10px; border: 1px dashed #bbb; border-radius: 4px; }
+.uploader__hint, .uploader__error, .uploader__files { margin: 0; }
+.uploader__hint { color: var(--color-text-muted); font-size: 0.875rem; }
+.uploader__error { color: var(--color-danger); font-weight: 700; }
+.uploader__files { padding-left: 18px; color: var(--color-text-muted); }
 .attachment-preview-list { column-count: 3; column-gap: 12px; }
 .attachment-preview { display: inline-grid; width: 100%; margin: 0 0 12px; break-inside: avoid; padding: 8px; border: 1px solid #dbe3ef; border-radius: 10px; background: #f8fafc; color: #2563eb; font-size: 13px; text-decoration: none; }
 .image-preview-button { display: grid; width: 100%; padding: 0; border: 0; background: transparent; cursor: zoom-in; }

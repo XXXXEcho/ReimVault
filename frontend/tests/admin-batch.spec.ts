@@ -184,32 +184,40 @@ describe('admin views', () => {
   });
 
   it('passes employee, category, status, and payment date filters to admin reimbursement API', async () => {
+    vi.mocked(http.get).mockImplementation((url: string) => {
+      if (url === '/admin/categories') return Promise.resolve({ data: [{ id: 7, name: '差旅', enabled: true, sortOrder: 1, remark: '' }] });
+      if (url === '/admin/employees') return Promise.resolve({ data: [{ id: 11, username: 'emp', displayName: '员工一', department: '研发部', role: 'EMPLOYEE', enabled: true }] });
+      return Promise.resolve({ data: [] });
+    });
     const wrapper = mount(ReimbursementAdminView, { global: { stubs: ['el-table', 'el-table-column', 'el-form', 'el-form-item', 'el-input', 'el-select', 'el-option', 'el-button'] } });
+    await Promise.resolve();
+    await Promise.resolve();
 
     await wrapper.find('[aria-label="员工ID"]').setValue('11');
     await wrapper.find('[aria-label="分类ID"]').setValue('7');
     await wrapper.find('[aria-label="状态"]').setValue('ARCHIVED');
     await wrapper.find('[aria-label="开始日期"]').setValue('2026-05-01');
     await wrapper.find('[aria-label="结束日期"]').setValue('2026-05-31');
-    await wrapper.find('form.inline-form').trigger('submit');
+    await wrapper.find('[data-test="apply-filters"]').trigger('click');
 
-    expect(http.get).toHaveBeenCalledWith('/admin/reimbursements', {
+    expect(http.get).toHaveBeenLastCalledWith('/admin/reimbursements', {
       params: {
         employeeId: 11,
         categoryId: 7,
         status: 'ARCHIVED',
         from: '2026-05-01',
-        to: '2026-05-31',
-        reimbursed: undefined
+        to: '2026-05-31'
       }
     });
   });
 
-  it('previews filtered export records before enabling downloads', async () => {
+  it('previews records before enabling batch downloads', async () => {
     vi.mocked(http.get).mockImplementation((url: string) => {
       if (url === '/admin/batches') return Promise.resolve({ data: [{ id: 5, name: '五月批次', description: '月度报销', archivedAt: null, items: [] }] });
+      if (url === '/admin/categories') return Promise.resolve({ data: [] });
+      if (url === '/admin/employees') return Promise.resolve({ data: [] });
       if (url === '/oa-numbers') return Promise.resolve({ data: [{ id: 1, number: 'JF-001' }] });
-      if (url === '/admin/batches/export/preview') return Promise.resolve({ data: [{ id: 88, employeeId: 2, employeeName: '员工一', amount: 128, categoryId: 3, categoryName: '办公用品', purpose: '五月命中', paymentTime: '2026-05-10T10:00:00Z', status: 'SUBMITTED', adminRemark: '', submittedAt: '2026-05-11T10:00:00Z', archivedAt: null, reimbursedAt: null, batchId: null, batchName: null, oaId: 1, oaNumber: 'JF-001' }] });
+      if (url === '/admin/reimbursements') return Promise.resolve({ data: [{ id: 88, employeeId: 2, employeeName: '员工一', amount: 128, categoryId: 3, categoryName: '办公用品', purpose: '五月命中', paymentTime: '2026-05-10T10:00:00Z', status: 'SUBMITTED', adminRemark: '', submittedAt: '2026-05-11T10:00:00Z', archivedAt: null, reimbursedAt: null, batchId: null, batchName: null, oaId: 1, oaNumber: 'JF-001', attachments: [] }] });
       if (url === '/admin/batches/5') return Promise.resolve({ data: { id: 5, name: '五月批次', description: '月度报销', archivedAt: null, items: [] } });
       return Promise.resolve({ data: [] });
     });
@@ -218,49 +226,37 @@ describe('admin views', () => {
     await vi.waitFor(() => expect(wrapper.text()).toContain('JF-001'));
 
     const page = wrapper.text();
-    expect(page).toContain('先查询并核对命中记录，再导出 Excel 或附件压缩包。');
-    expect(page.indexOf('批量导出')).toBeLessThan(page.indexOf('创建批次'));
-    expect(page.indexOf('创建批次')).toBeLessThan(page.indexOf('批次列表'));
-    expect(page.indexOf('批次列表')).toBeLessThan(page.indexOf('高级操作：按 ID 维护批次'));
-    expect(page).toContain('请选择筛选条件后查询结果');
-    expect(wrapper.find('[data-test="export-filtered-excel"]').attributes('disabled')).toBeDefined();
-    expect(wrapper.find('[data-test="export-filtered-attachments"]').attributes('disabled')).toBeDefined();
+    expect(page).toContain('1. 选择范围并预览');
+    expect(page.indexOf('1. 选择范围并预览')).toBeLessThan(page.indexOf('2. 选择或创建批次'));
+    expect(page.indexOf('2. 选择或创建批次')).toBeLessThan(page.indexOf('3. 加入批次并导出'));
+    expect(page.indexOf('3. 加入批次并导出')).toBeLessThan(page.indexOf('高级操作：按 ID 维护批次'));
+    expect(wrapper.find('[data-test="export-excel"]').attributes('disabled')).toBeDefined();
+    expect(wrapper.find('[data-test="export-attachments"]').attributes('disabled')).toBeDefined();
 
     await wrapper.find('input[type="checkbox"]').setValue(true);
-    expect(wrapper.find('[data-test="export-filtered-excel"]').attributes('disabled')).toBeDefined();
-    await wrapper.find('[data-test="preview-filtered-export"]').trigger('click');
-
-    await vi.waitFor(() => expect(wrapper.text()).toContain('查询结果：1 条'));
     expect(wrapper.text()).toContain('员工一');
     expect(wrapper.text()).toContain('五月命中');
     expect(wrapper.text()).toContain('JF-001');
-    expect(wrapper.find('[data-test="export-filtered-excel"]').attributes('disabled')).toBeUndefined();
-    expect(wrapper.find('[data-test="export-filtered-attachments"]').attributes('disabled')).toBeUndefined();
 
-    await wrapper.find('[aria-label="批次ID"]').setValue('5');
-    await wrapper.find('[data-test="load-batch"]').trigger('click');
+    await wrapper.findAll('button').find((button) => button.text().includes('五月批次'))?.trigger('click');
     await vi.waitFor(() => expect(wrapper.text()).toContain('当前批次：五月批次'));
-    expect(wrapper.text()).toContain('导出当前批次 Excel');
-    expect(wrapper.text()).toContain('下载当前批次附件压缩包');
-    expect(wrapper.text()).toContain('归档当前批次');
+    expect(wrapper.find('[data-test="export-excel"]').attributes('disabled')).toBeUndefined();
+    expect(wrapper.find('[data-test="export-attachments"]').attributes('disabled')).toBeUndefined();
   });
 
-  it('shows filtered export preview errors without leaving the page stuck', async () => {
+  it('shows preview errors without leaving the page stuck', async () => {
     vi.mocked(http.get).mockImplementation((url: string) => {
       if (url === '/admin/batches') return Promise.resolve({ data: [] });
+      if (url === '/admin/categories') return Promise.resolve({ data: [] });
+      if (url === '/admin/employees') return Promise.resolve({ data: [] });
       if (url === '/oa-numbers') return Promise.resolve({ data: [{ id: 1, number: 'JF-001' }] });
-      if (url === '/admin/batches/export/preview') return Promise.reject({ response: { data: { message: '请先登录' } } });
+      if (url === '/admin/reimbursements') return Promise.reject({ response: { data: { message: '请先登录' } } });
       return Promise.resolve({ data: [] });
     });
 
     const wrapper = mount(BatchAdminView, { global: { stubs: ['el-table', 'el-table-column', 'el-form', 'el-form-item', 'el-input', 'el-button'] } });
-    await vi.waitFor(() => expect(wrapper.text()).toContain('JF-001'));
-
-    await wrapper.find('input[type="checkbox"]').setValue(true);
-    await wrapper.find('[data-test="preview-filtered-export"]').trigger('click');
-
     await vi.waitFor(() => expect(wrapper.text()).toContain('请先登录'));
-    expect(wrapper.find('[data-test="preview-filtered-export"]').text()).toBe('查询结果');
+    expect(wrapper.text()).toContain('暂无可加入批次的记录');
   });
 
   it('adds selected records to a batch and downloads Excel and attachment exports', async () => {
@@ -276,24 +272,36 @@ describe('admin views', () => {
       return element;
     });
     vi.mocked(http.get).mockImplementation((url: string) => {
-      if (url === '/admin/batches/5') return Promise.resolve({ data: { id: 5, name: '五月批次', items: [] } });
-      if (url === '/admin/batches/5/export/excel') return Promise.resolve({ data: new Blob(['excel']) });
-      if (url === '/admin/batches/5/export/attachments') return Promise.resolve({ data: new Blob(['zip']) });
+      if (url === '/admin/categories') return Promise.resolve({ data: [] });
+      if (url === '/admin/employees') return Promise.resolve({ data: [] });
+      if (url === '/admin/reimbursements') return Promise.resolve({ data: [{ id: 99, employeeId: 2, employeeName: '员工一', amount: 128, categoryId: 3, categoryName: '办公用品', purpose: '五月命中', paymentTime: '2026-05-10T10:00:00Z', status: 'SUBMITTED', adminRemark: '', submittedAt: '2026-05-11T10:00:00Z', archivedAt: null, attachments: [] }] });
+      if (url === '/admin/batches/1') return Promise.resolve({ data: { id: 1, name: '五月批次', items: [] } });
+      if (url === '/admin/batches/1/export/excel') return Promise.resolve({ data: new Blob(['excel']) });
+      if (url === '/admin/batches/1/export/attachments') return Promise.resolve({ data: new Blob(['zip']) });
       return Promise.resolve({ data: [] });
     });
-    vi.mocked(http.post).mockResolvedValue({ data: {} });
+    vi.mocked(http.post).mockImplementation((url: string) => {
+      if (url === '/admin/batches/1/items') return Promise.resolve({ data: { id: 1, name: '五月批次', items: [{ id: 1, recordId: 99, employeeName: '员工一', categoryName: '办公用品' }] } });
+      return Promise.resolve({ data: {} });
+    });
 
     const wrapper = mount(BatchAdminView, { global: { stubs: ['el-table', 'el-table-column', 'el-form', 'el-form-item', 'el-input', 'el-button'] } });
-    await wrapper.find('[aria-label="批次ID"]').setValue('5');
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(wrapper.text()).toContain('批次列表');
+    expect(wrapper.findAll('.enterprise-card.batch-card')).toHaveLength(4);
+    expect(wrapper.findAll('.table-scroll')).toHaveLength(2);
+    await wrapper.find('[aria-label="批次ID"]').setValue('1');
     await wrapper.find('[data-test="load-batch"]').trigger('click');
-    await wrapper.find('[aria-label="报销记录ID"]').setValue('99');
-    await wrapper.find('[data-test="add-record"]').trigger('click');
+    await Promise.resolve();
+    await wrapper.find('[aria-label="选择记录99"]').setValue(true);
+    await wrapper.findAll('button').find((button) => button.text() === '加入选中记录')?.trigger('click');
     await wrapper.find('[data-test="export-excel"]').trigger('click');
     await wrapper.find('[data-test="export-attachments"]').trigger('click');
 
-    expect(http.post).toHaveBeenCalledWith('/admin/batches/5/items/99');
-    expect(http.get).toHaveBeenCalledWith('/admin/batches/5/export/excel', { responseType: 'blob' });
-    expect(http.get).toHaveBeenCalledWith('/admin/batches/5/export/attachments', { responseType: 'blob' });
+    expect(http.post).toHaveBeenCalledWith('/admin/batches/1/items', { recordIds: [99] });
+    expect(http.get).toHaveBeenCalledWith('/admin/batches/1/export/excel', { responseType: 'blob' });
+    expect(http.get).toHaveBeenCalledWith('/admin/batches/1/export/attachments', { responseType: 'blob' });
     expect(createObjectURL).toHaveBeenCalledTimes(2);
     expect(click).toHaveBeenCalledTimes(2);
     expect(revokeObjectURL).toHaveBeenCalledWith('blob:export');
@@ -302,6 +310,8 @@ describe('admin views', () => {
   it('archives the loaded batch through the archive endpoint', async () => {
     vi.spyOn(window, 'confirm').mockReturnValue(true);
     vi.mocked(http.get).mockImplementation((url: string) => {
+      if (url === '/admin/categories') return Promise.resolve({ data: [] });
+      if (url === '/admin/employees') return Promise.resolve({ data: [] });
       if (url === '/admin/batches/5') return Promise.resolve({ data: { id: 5, name: '五月批次', items: [] } });
       return Promise.resolve({ data: [] });
     });

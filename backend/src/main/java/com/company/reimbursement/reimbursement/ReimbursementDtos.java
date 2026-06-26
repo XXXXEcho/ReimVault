@@ -17,7 +17,20 @@ public class ReimbursementDtos {
     public record OaNumberRequest(Long oaId) {
     }
 
-    public record AdminListFilter(Long employeeId, Long categoryId, ReimbursementStatus status, LocalDate from, LocalDate to, Boolean reimbursed, Long oaId) {
+    public enum BulkAction {
+        REIMBURSE,
+        UNREIMBURSE,
+        REJECT,
+        ARCHIVE
+    }
+
+    public record BulkActionRequest(List<Long> ids, BulkAction action) {
+    }
+
+    public record EmployeeListFilter(Long categoryId, ReimbursementStatus status, LocalDate from, LocalDate to, String keyword) {
+    }
+
+    public record AdminListFilter(Long employeeId, Long categoryId, ReimbursementStatus status, LocalDate from, LocalDate to, Boolean reimbursed, Long oaId, String keyword) {
     }
 
     public record StatsResponse(long totalCount, BigDecimal totalAmount,

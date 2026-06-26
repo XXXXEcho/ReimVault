@@ -62,6 +62,25 @@ public class BatchService {
     }
 
     @Transactional
+    public BatchDtos.BatchResponse addItems(Long batchId, List<Long> recordIds) {
+        if (recordIds == null || recordIds.isEmpty()) {
+            throw new IllegalArgumentException("请选择要加入批次的报销记录");
+        }
+        ReimbursementBatch batch = findBatch(batchId);
+        for (Long recordId : recordIds) {
+            ReimbursementRecord record = records.findById(recordId).orElseThrow(() -> new EntityNotFoundException("报销记录不存在"));
+            if (record.getStatus() != ReimbursementStatus.SUBMITTED) {
+                throw new IllegalStateException("只能添加已提交记录");
+            }
+            if (!items.existsByRecordId(recordId)) {
+                items.save(ReimbursementBatchItem.create(batch, record));
+                record.setBatch(batch);
+            }
+        }
+        return toResponse(batch);
+    }
+
+    @Transactional
     public BatchDtos.BatchResponse removeItem(Long batchId, Long recordId) {
         ReimbursementBatch batch = findBatch(batchId);
         ReimbursementBatchItem item = items.findByBatchIdAndRecordId(batchId, recordId).orElseThrow(() -> new EntityNotFoundException("批次记录不存在"));

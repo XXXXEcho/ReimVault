@@ -1,223 +1,245 @@
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue';
-import { RouterLink } from 'vue-router';
-import { listAdminReimbursements, rejectReimbursement, updateAdminRemark, updateOaNumber as updateOa, markReimbursed, unreimburse, archiveRecords, type ReimbursementRecord, type ReimbursementStatus, statusLabel, formatTime } from '../../api/reimbursements';
-import { listOaNumbers, type OaNumber } from '../../api/oa';
-import { addBatchItem, removeBatchItem, listBatches, ensureMonthlyBatch, type Batch } from '../../api/batches';
+import { computed, onMounted, ref } from 'vue';
+import { ElMessage, ElMessageBox } from 'element-plus';
+import EmptyState from '../../components/EmptyState.vue';
+import MaterialPreviewer from '../../components/MaterialPreviewer.vue';
+import MetricCard from '../../components/MetricCard.vue';
+import RecordDrawer from '../../components/RecordDrawer.vue';
+import WorkbenchFilters from '../../components/WorkbenchFilters.vue';
+import WorkbenchRecordTable from '../../components/WorkbenchRecordTable.vue';
+import {
+  bulkUpdateReimbursements,
+  listAdminReimbursements,
+  type AdminReimbursementFilters,
+  type BulkReimbursementAction,
+  type ReimbursementRecord,
+  type ReimbursementStatus
+} from '../../api/reimbursements';
 
 const records = ref<ReimbursementRecord[]>([]);
-const oaNumbers = ref<OaNumber[]>([]);
-const allBatches = ref<Batch[]>([]);
-const filters = reactive({ employeeId: '', categoryId: '', status: 'SUBMITTED', from: '', to: '', reimbursed: false });
-const remarks = reactive<Record<number, string>>({});
-const oaIds = reactive<Record<number, number | null>>({});
-const batchIds = reactive<Record<number, number | null>>({});
-const monthlyBatch = ref<Batch | null>(null);
-const notice = ref<{ type: 'success' | 'error'; text: string } | null>(null);
+const selected = ref<ReimbursementRecord | null>(null);
+const selectedIds = ref<number[]>([]);
+const previewAttachmentId = ref<number | null>(null);
+const filters = ref({ employeeId: '', categoryId: '', status: 'SUBMITTED', from: '', to: '', keyword: '', oaId: '', reimbursed: '' });
+const loading = ref(false);
+const error = ref('');
 
-function filterParams() {
-  return {
-    employeeId: filters.employeeId ? Number(filters.employeeId) : undefined,
-    categoryId: filters.categoryId ? Number(filters.categoryId) : undefined,
-    status: (filters.status || undefined) as ReimbursementStatus | undefined,
-    from: filters.from || undefined,
-    to: filters.to || undefined,
-    reimbursed: filters.reimbursed || undefined
-  };
+function params(): AdminReimbursementFilters {
+  const next: AdminReimbursementFilters = {};
+  if (filters.value.employeeId) next.employeeId = Number(filters.value.employeeId);
+  if (filters.value.categoryId) next.categoryId = Number(filters.value.categoryId);
+  if (filters.value.status) next.status = filters.value.status as ReimbursementStatus;
+  if (filters.value.from) next.from = filters.value.from;
+  if (filters.value.to) next.to = filters.value.to;
+  if (filters.value.keyword) next.keyword = filters.value.keyword;
+  if (filters.value.oaId) next.oaId = Number(filters.value.oaId);
+  if (filters.value.reimbursed) next.reimbursed = filters.value.reimbursed === 'true';
+  return next;
 }
 
-function errorMessage(err: unknown) {
+async function load() {
+  loading.value = true;
+  error.value = '';
+  try {
+    const response = await listAdminReimbursements(params());
+    records.value = response.data;
+    selectedIds.value = selectedIds.value.filter((id) => records.value.some((record) => record.id === id));
+  } catch (err) {
+    error.value = apiErrorMessage(err);
+  } finally {
+    loading.value = false;
+  }
+}
+
+async function refreshSelected(record: ReimbursementRecord) {
+  await load();
+  selected.value = records.value.find((item) => item.id === record.id) ?? record;
+}
+
+function hasPaymentVoucher(record: ReimbursementRecord) {
+  return (record.attachments ?? []).some((attachment) => attachment.type === 'PAYMENT_VOUCHER');
+}
+
+const previewAttachments = computed(() => selected.value?.attachments ?? []);
+
+const metrics = computed(() => ({
+  draft: records.value.filter((record) => record.status === 'DRAFT').length,
+  submitted: records.value.filter((record) => record.status === 'SUBMITTED' && !record.reimbursedAt).length,
+  reimbursed: records.value.filter((record) => record.reimbursedAt).length,
+  archived: records.value.filter((record) => record.status === 'ARCHIVED').length,
+  incomplete: records.value.filter((record) => !hasPaymentVoucher(record)).length
+}));
+
+function resetFilters() {
+  filters.value = { employeeId: '', categoryId: '', status: 'SUBMITTED', from: '', to: '', keyword: '', oaId: '', reimbursed: '' };
+  void load();
+}
+
+function apiErrorMessage(err: unknown) {
   if (typeof err === 'object' && err && 'response' in err) {
     const response = (err as { response?: { data?: { message?: string } } }).response;
     if (response?.data?.message) return response.data.message;
   }
-  return '操作失败';
+  return '操作失败，请稍后重试';
 }
 
-async function load() {
-  const response = await listAdminReimbursements(filterParams());
-  records.value = response.data;
-  for (const record of records.value) {
-    remarks[record.id] = record.adminRemark ?? '';
-    oaIds[record.id] = record.oaId ?? null;
-    batchIds[record.id] = record.batchId ?? null;
-  }
-}
-
-async function saveRemark(id: number) {
-  await updateAdminRemark(id, remarks[id] ?? '');
-  await load();
-}
-
-async function saveOaNumber(id: number) {
-  await updateOa(id, oaIds[id] ?? null);
-  await load();
-}
-
-async function saveBatch(recordId: number) {
-  const newBatchId = batchIds[recordId];
-  const record = records.value.find((r) => r.id === recordId);
-  const oldBatchId = record?.batchId ?? null;
-  notice.value = null;
+async function runBulkAction(action: BulkReimbursementAction, label: string) {
+  if (!selectedIds.value.length) return;
   try {
-    if (oldBatchId && oldBatchId !== newBatchId) {
-      await removeBatchItem(oldBatchId, recordId);
-    }
-    if (newBatchId) {
-      await addBatchItem(newBatchId, recordId);
-    }
-    notice.value = { type: 'success', text: newBatchId ? '已分配批次' : '已移出批次' };
-    await load();
-  } catch (err) {
-    notice.value = { type: 'error', text: errorMessage(err) };
-  }
-}
-
-async function initMonthlyBatch() {
-  try {
-    const response = await ensureMonthlyBatch();
-    monthlyBatch.value = response.data;
+    await ElMessageBox.confirm(`确认对 ${selectedIds.value.length} 条记录执行“${label}”？`, '批量处理确认', {
+      confirmButtonText: label,
+      cancelButtonText: '取消',
+      type: action === 'REJECT' ? 'warning' : 'info'
+    });
   } catch {
-    // batch may already exist, ignore
+    return;
   }
-}
-
-async function addToMonthlyBatch(recordId: number) {
-  if (!monthlyBatch.value) return;
-  notice.value = null;
   try {
-    await addBatchItem(monthlyBatch.value.id, recordId);
-    notice.value = { type: 'success', text: '已加入月度批次' };
+    await bulkUpdateReimbursements(selectedIds.value, action);
+    ElMessage.success(`${label}完成`);
+    selectedIds.value = [];
     await load();
   } catch (err) {
-    notice.value = { type: 'error', text: errorMessage(err) };
+    ElMessage.error(apiErrorMessage(err));
   }
 }
 
-async function rejectRecord(id: number) {
-  notice.value = null;
-  try {
-    const record = records.value.find((r) => r.id === id);
-    if (record?.batchId) {
-      await removeBatchItem(record.batchId, id);
-    }
-    await rejectReimbursement(id);
-    notice.value = { type: 'success', text: '已打回' };
-    await load();
-  } catch (err) {
-    notice.value = { type: 'error', text: errorMessage(err) };
-  }
+function openDrawer(record: ReimbursementRecord) {
+  selected.value = record;
+  previewAttachmentId.value = null;
 }
 
-async function markAsReimbursed(id: number) {
-  notice.value = null;
-  try {
-    await markReimbursed(id);
-    notice.value = { type: 'success', text: '已标记为报销完成' };
-    await load();
-  } catch (err) {
-    notice.value = { type: 'error', text: errorMessage(err) };
-  }
+function closeDrawer() {
+  selected.value = null;
+  previewAttachmentId.value = null;
 }
 
-async function undoReimbursed(id: number) {
-  notice.value = null;
-  try {
-    await unreimburse(id);
-    notice.value = { type: 'success', text: '已撤销报销' };
-    await load();
-  } catch (err) {
-    notice.value = { type: 'error', text: errorMessage(err) };
-  }
-}
-
-async function archiveRecord(id: number) {
-  notice.value = null;
-  try {
-    await archiveRecords([id]);
-    notice.value = { type: 'success', text: '已归档' };
-    await load();
-  } catch (err) {
-    notice.value = { type: 'error', text: errorMessage(err) };
-  }
-}
-
-onMounted(async () => {
-  const [oaResponse, batchResponse] = await Promise.all([listOaNumbers(), listBatches()]);
-  oaNumbers.value = oaResponse.data;
-  allBatches.value = batchResponse.data;
-  await Promise.all([load(), initMonthlyBatch()]);
-});
+onMounted(load);
 </script>
 
 <template>
-  <section>
-    <h1>报销管理</h1>
-    <p v-if="notice" :class="['notice', notice.type]" :role="notice.type === 'error' ? 'alert' : 'status'">{{ notice.text }}</p>
-    <form class="inline-form" @submit.prevent="load">
-      <input aria-label="员工ID" v-model="filters.employeeId" type="number" min="1" placeholder="员工ID" />
-      <input aria-label="分类ID" v-model="filters.categoryId" type="number" min="1" placeholder="分类ID" />
-      <select aria-label="状态" v-model="filters.status"><option value="SUBMITTED">已提交未报销</option><option value="ARCHIVED">已报销</option><option value="DRAFT">未提交</option></select>
-      <input aria-label="开始日期" v-model="filters.from" type="date" />
-      <input aria-label="结束日期" v-model="filters.to" type="date" />
-      <button type="button" :class="{ active: filters.reimbursed }" @click="filters.reimbursed = !filters.reimbursed; load()">{{ filters.reimbursed ? '显示全部' : '只看已报销' }}</button>
-      <button type="submit">筛选</button>
-    </form>
-    <div class="table-scroll">
-    <table>
-      <thead><tr><th>员工</th><th>金额</th><th>用途分类</th><th>用途说明</th><th>支付时间</th><th>经费编码</th><th>状态</th><th>报销时间</th><th>批次</th><th>备注</th><th>操作</th></tr></thead>
-      <tbody>
-        <tr v-for="record in records" :key="record.id">
-          <td>{{ record.employeeName }}</td>
-          <td>{{ record.amount }}</td>
-          <td>{{ record.categoryName }}</td>
-          <td>{{ record.purpose }}</td>
-          <td>{{ formatTime(record.paymentTime) }}</td>
-          <td><select class="oa-select" :aria-label="`经费编码${record.id}`" v-model.number="oaIds[record.id]" @change="saveOaNumber(record.id)"><option :value="null">未分配</option><option v-for="oa in oaNumbers" :key="oa.id" :value="oa.id">{{ oa.number }}</option></select></td>
-          <td><span class="status-tag" :class="record.reimbursedAt ? 'reimbursed' : record.status.toLowerCase()">{{ statusLabel(record.status, record.reimbursedAt) }}</span></td>
-          <td>{{ formatTime(record.reimbursedAt) }}</td>
-          <td><select class="batch-select" :aria-label="`批次${record.id}`" v-model.number="batchIds[record.id]" @change="saveBatch(record.id)"><option :value="null">未分配</option><option v-for="b in allBatches" :key="b.id" :value="b.id">{{ b.name }}</option></select></td>
-          <td><input class="remark-input" :aria-label="`备注${record.id}`" v-model="remarks[record.id]" /></td>
-          <td class="row-actions">
-            <RouterLink :to="`/admin/reimbursements/${record.id}`" class="link-view">查看</RouterLink>
-            <button @click="saveRemark(record.id)">保存备注</button>
-            <button v-if="record.status === 'SUBMITTED'" class="btn-warning" @click="rejectRecord(record.id)">打回</button>
-            <button v-if="record.status === 'SUBMITTED' && !record.reimbursedAt" class="btn-success" @click="markAsReimbursed(record.id)">已报销</button>
-            <button v-if="record.reimbursedAt" class="btn-undo" @click="undoReimbursed(record.id)">撤销报销</button>
-            <button v-if="record.reimbursedAt" class="btn-archive" @click="archiveRecord(record.id)">归档</button>
-          </td>
-        </tr>
-      </tbody>
-    </table>
+  <section class="workbench-page">
+    <header class="workbench-page__header">
+      <div>
+        <p class="eyebrow">Admin Workbench</p>
+        <h1>报销管理</h1>
+      </div>
+    </header>
+
+    <div class="metrics-grid">
+      <MetricCard title="草稿" :value="metrics.draft" />
+      <MetricCard title="待报销" :value="metrics.submitted" tone="success" />
+      <MetricCard title="已报销" :value="metrics.reimbursed" />
+      <MetricCard title="已归档" :value="metrics.archived" />
+      <MetricCard title="材料不完整" :value="metrics.incomplete" tone="danger" />
     </div>
+
+    <WorkbenchFilters v-model="filters" admin @apply="load" @reset="resetFilters" />
+
+    <p v-if="error" class="notice notice--error" role="alert">
+      {{ error }}
+      <button type="button" @click="load">重试</button>
+    </p>
+
+    <div v-if="records.length" class="bulk-bar enterprise-card">
+      <span>已选择 {{ selectedIds.length }} 条</span>
+      <button type="button" :disabled="!selectedIds.length" @click="runBulkAction('REIMBURSE', '标记已报销')">标记已报销</button>
+      <button type="button" :disabled="!selectedIds.length" @click="runBulkAction('UNREIMBURSE', '撤销报销')">撤销报销</button>
+      <button type="button" :disabled="!selectedIds.length" @click="runBulkAction('ARCHIVE', '归档')">归档</button>
+      <button type="button" :disabled="!selectedIds.length" @click="runBulkAction('REJECT', '打回')">打回</button>
+      <button type="button" :disabled="!selectedIds.length" @click="selectedIds = []">清空选择</button>
+    </div>
+
+    <p v-if="loading" class="loading">加载报销记录中...</p>
+    <WorkbenchRecordTable v-else-if="records.length" v-model:selected-ids="selectedIds" :records="records" admin @open="openDrawer" />
+    <EmptyState v-else title="暂无待处理记录" description="符合筛选条件的报销会显示在这里。" />
+
+    <RecordDrawer
+      v-if="selected"
+      :record="selected"
+      :role="'ADMIN'"
+      @close="closeDrawer"
+      @saved="refreshSelected"
+      @submitted="refreshSelected"
+      @preview="previewAttachmentId = $event"
+    />
+    <MaterialPreviewer
+      v-if="previewAttachmentId"
+      :attachments="previewAttachments"
+      :active-id="previewAttachmentId"
+      @close="previewAttachmentId = null"
+    />
   </section>
 </template>
 
 <style scoped>
-.inline-form { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 18px; }
-.notice { margin: 0 0 14px; padding: 10px 14px; border-radius: 10px; font-size: 13px; font-weight: 700; }
-.notice.success { background: #dcfce7; color: #166534; }
-.notice.error { background: #fee2e2; color: #991b1b; }
-.status-tag { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 11px; font-weight: 800; letter-spacing: .4px; }
-.status-tag.submitted { background: #dbeafe; color: #1d4ed8; }
-.status-tag.reimbursed { background: #dcfce7; color: #166534; }
-.status-tag.archived { background: #f3f4f6; color: #6b7280; }
-.status-tag.draft { background: #fef3c7; color: #b45309; }
-.table-scroll { overflow-x: auto; }
-.remark-input { width: 100%; min-width: 120px; }
-.oa-select { min-width: 80px; }
-.batch-select { min-width: 80px; }
-.row-actions { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
-.btn-secondary { background: #f0f4ff !important; color: #2563eb !important; font-size: 12px !important; }
-.btn-secondary:hover { background: #2563eb !important; color: #fff !important; }
-.link-view { display: inline-flex; align-items: center; min-height: 34px; padding: 0 12px; border-radius: 8px; background: #f0f4ff; color: #2563eb; font-size: 12px; font-weight: 700; text-decoration: none; transition: background 160ms ease; }
-.link-view:hover { background: #2563eb; color: #fff; }
-.btn-warning { min-height: 34px; padding: 0 12px; border: 1px solid #fcd34d; border-radius: 8px; background: #fff; color: #b45309; font-size: 12px; font-weight: 700; cursor: pointer; transition: background 160ms ease, color 160ms ease; }
-.btn-warning:hover { background: #b45309; color: #fff; }
-.btn-success { min-height: 34px; padding: 0 12px; border: 1px solid #86efac; border-radius: 8px; background: #fff; color: #16a34a; font-size: 12px; font-weight: 700; cursor: pointer; transition: background 160ms ease, color 160ms ease; }
-.btn-success:hover { background: #16a34a; color: #fff; }
-.btn-undo { min-height: 34px; padding: 0 12px; border: 1px solid #fca5a5; border-radius: 8px; background: #fff; color: #dc2626; font-size: 12px; font-weight: 700; cursor: pointer; transition: background 160ms ease, color 160ms ease; }
-.btn-undo:hover { background: #dc2626; color: #fff; }
-.btn-archive { min-height: 34px; padding: 0 12px; border: 1px solid #a5b4fc; border-radius: 8px; background: #fff; color: #4f46e5; font-size: 12px; font-weight: 700; cursor: pointer; }
-.btn-archive:hover { background: #4f46e5; color: #fff; }
+.workbench-page {
+  display: grid;
+  gap: var(--space-5);
+}
+
+.workbench-page__header h1,
+.eyebrow {
+  margin: 0;
+}
+
+.eyebrow {
+  color: var(--color-text-muted);
+  font-size: 0.875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: var(--space-4);
+}
+
+.bulk-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+}
+
+.bulk-bar span {
+  color: var(--color-text-muted);
+  font-weight: 700;
+}
+
+.bulk-bar button,
+.notice button {
+  min-height: 36px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 0 var(--space-3);
+  background: var(--color-surface);
+  color: var(--color-primary-strong);
+  cursor: pointer;
+}
+
+.bulk-bar button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.notice {
+  margin: 0;
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+  font-weight: 700;
+}
+
+.notice--error {
+  background: var(--color-danger-soft);
+  color: var(--color-danger);
+}
+
+.loading {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-weight: 700;
+}
 </style>

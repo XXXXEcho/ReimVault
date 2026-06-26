@@ -106,6 +106,15 @@ public class ReimbursementRecord {
         this.updatedAt = this.archivedAt;
     }
 
+    public void restoreSubmitted() {
+        if (status != ReimbursementStatus.ARCHIVED) {
+            throw new IllegalStateException("只能撤销已归档记录");
+        }
+        this.status = ReimbursementStatus.SUBMITTED;
+        this.archivedAt = null;
+        this.updatedAt = Instant.now();
+    }
+
     public void setAdminRemark(String adminRemark) {
         this.adminRemark = adminRemark;
         this.updatedAt = Instant.now();

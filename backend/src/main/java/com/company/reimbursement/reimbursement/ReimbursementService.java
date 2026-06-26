@@ -9,6 +9,8 @@ import com.company.reimbursement.oa.OaNumberRepository;
 import com.company.reimbursement.user.User;
 import com.company.reimbursement.user.UserRepository;
 import jakarta.persistence.EntityNotFoundException;
+import jakarta.persistence.criteria.CriteriaBuilder;
+import jakarta.persistence.criteria.Expression;
 import jakarta.persistence.criteria.Predicate;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -60,7 +62,12 @@ public class ReimbursementService {
 
     @Transactional(readOnly = true)
     public List<ReimbursementDtos.RecordResponse> listMine(String username) {
-        return records.findByEmployeeOrderByCreatedAtDesc(findUser(username)).stream()
+        return listMine(username, new ReimbursementDtos.EmployeeListFilter(null, null, null, null, null));
+    }
+
+    @Transactional(readOnly = true)
+    public List<ReimbursementDtos.RecordResponse> listMine(String username, ReimbursementDtos.EmployeeListFilter filter) {
+        return records.findAll(employeeFilter(findUser(username), filter)).stream()
                 .map(this::response)
                 .toList();
     }
@@ -202,8 +209,52 @@ public class ReimbursementService {
         }
     }
 
+    @Transactional
+    public List<ReimbursementDtos.RecordResponse> bulkAction(ReimbursementDtos.BulkActionRequest request) {
+        if (request.ids() == null || request.ids().isEmpty()) {
+            throw new IllegalArgumentException("请选择要处理的报销记录");
+        }
+        if (request.action() == null) {
+            throw new IllegalArgumentException("请选择批量操作");
+        }
+        return request.ids().stream()
+                .map(id -> records.findById(id).orElseThrow(() -> new EntityNotFoundException("报销记录不存在")))
+                .peek(record -> applyBulkAction(record, request.action()))
+                .map(this::response)
+                .toList();
+    }
+
+    @Transactional
+    public ReimbursementDtos.RecordResponse updateAdminRemark(Long id, ReimbursementDtos.AdminRemarkRequest request) {
+        ReimbursementRecord record = records.findById(id).orElseThrow(() -> new EntityNotFoundException("报销记录不存在"));
+        record.setAdminRemark(request.adminRemark());
+        return response(record);
+    }
+
+    @Transactional
+    public ReimbursementDtos.RecordResponse updateOaNumber(Long id, ReimbursementDtos.OaNumberRequest request) {
+        ReimbursementRecord record = records.findById(id).orElseThrow(() -> new EntityNotFoundException("报销记录不存在"));
+        OaNumber oa = request.oaId() != null ? oaNumbers.findById(request.oaId()).orElseThrow() : null;
+        record.setOa(oa);
+        return response(record);
+    }
+
     private ReimbursementDtos.RecordResponse response(ReimbursementRecord record) {
         return ReimbursementDtos.RecordResponse.from(record, attachments.findByRecord(record));
+    }
+
+    private Specification<ReimbursementRecord> employeeFilter(User employee, ReimbursementDtos.EmployeeListFilter filter) {
+        return (root, query, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
+            predicates.add(cb.equal(root.get("employee"), employee));
+            if (filter.categoryId() != null) predicates.add(cb.equal(root.get("category").get("id"), filter.categoryId()));
+            if (filter.status() != null) predicates.add(cb.equal(root.get("status"), filter.status()));
+            if (filter.from() != null) predicates.add(cb.greaterThanOrEqualTo(root.get("paymentTime"), filter.from().atStartOfDay().toInstant(ZoneOffset.UTC)));
+            if (filter.to() != null) predicates.add(cb.lessThan(root.get("paymentTime"), filter.to().plusDays(1).atStartOfDay().toInstant(ZoneOffset.UTC)));
+            addKeywordPredicate(filter.keyword(), root.get("purpose"), predicates, cb);
+            query.orderBy(cb.desc(root.get("createdAt")));
+            return cb.and(predicates.toArray(Predicate[]::new));
+        };
     }
 
     private Specification<ReimbursementRecord> adminFilter(ReimbursementDtos.AdminListFilter filter) {
@@ -221,23 +272,25 @@ public class ReimbursementService {
             if (filter.oaId() != null) {
                 predicates.add(cb.equal(root.get("oa").get("id"), filter.oaId()));
             }
+            addKeywordPredicate(filter.keyword(), root.get("purpose"), predicates, cb);
+            query.orderBy(cb.desc(root.get("createdAt")));
             return cb.and(predicates.toArray(Predicate[]::new));
         };
     }
 
-    @Transactional
-    public ReimbursementDtos.RecordResponse updateAdminRemark(Long id, ReimbursementDtos.AdminRemarkRequest request) {
-        ReimbursementRecord record = records.findById(id).orElseThrow(() -> new EntityNotFoundException("报销记录不存在"));
-        record.setAdminRemark(request.adminRemark());
-        return response(record);
+    private void addKeywordPredicate(String keyword, Expression<String> field, List<Predicate> predicates, CriteriaBuilder cb) {
+        if (keyword != null && !keyword.isBlank()) {
+            predicates.add(cb.like(cb.lower(field), "%" + keyword.trim().toLowerCase() + "%"));
+        }
     }
 
-    @Transactional
-    public ReimbursementDtos.RecordResponse updateOaNumber(Long id, ReimbursementDtos.OaNumberRequest request) {
-        ReimbursementRecord record = records.findById(id).orElseThrow(() -> new EntityNotFoundException("报销记录不存在"));
-        OaNumber oa = request.oaId() != null ? oaNumbers.findById(request.oaId()).orElseThrow() : null;
-        record.setOa(oa);
-        return response(record);
+    private void applyBulkAction(ReimbursementRecord record, ReimbursementDtos.BulkAction action) {
+        switch (action) {
+            case REIMBURSE -> record.markReimbursed();
+            case UNREIMBURSE -> record.clearReimbursed();
+            case REJECT -> record.rejectToDraft();
+            case ARCHIVE -> record.archive();
+        }
     }
 
     private ReimbursementRecord getOwnedRecord(String username, Long id) {

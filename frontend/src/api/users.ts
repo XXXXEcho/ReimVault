@@ -30,6 +30,10 @@ export function listUsers() {
   return http.get<UserRecord[]>('/admin/users');
 }
 
+export function searchEmployees(keyword = '') {
+  return http.get<UserRecord[]>('/admin/employees', { params: keyword ? { keyword } : {} });
+}
+
 export function createUser(payload: CreateUserInput) {
   return http.post<UserRecord>('/admin/users', payload);
 }

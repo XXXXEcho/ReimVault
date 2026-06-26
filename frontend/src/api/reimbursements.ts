@@ -1,14 +1,16 @@
 import http from './http';
 
 export type ReimbursementStatus = 'DRAFT' | 'SUBMITTED' | 'ARCHIVED';
+export type AttachmentType = 'PAYMENT_VOUCHER' | 'ORDER_SCREENSHOT' | 'INVOICE';
+export type BulkReimbursementAction = 'REIMBURSE' | 'UNREIMBURSE' | 'REJECT' | 'ARCHIVE';
 
 export function statusLabel(status: ReimbursementStatus, reimbursedAt?: string | null) {
   if (status === 'SUBMITTED' && reimbursedAt) return '已报销';
-  return { DRAFT: '未提交', SUBMITTED: '已提交未报销', ARCHIVED: '已报销' }[status];
+  return { DRAFT: '草稿', SUBMITTED: '待报销', ARCHIVED: '已归档' }[status];
 }
 
 export function formatTime(iso: string | null | undefined) {
-  if (!iso) return '—';
+  if (!iso) return '-';
   return new Date(iso).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
 }
 
@@ -17,10 +19,10 @@ export interface ReimbursementInput {
   categoryId: number;
   purpose: string;
   paymentTime: string;
-  oaId: number | null;
+  oaId?: number | null;
 }
 
-export interface ReimbursementAttachment {
+export interface AttachmentRecord {
   id: number;
   type: AttachmentType;
   originalFilename: string;
@@ -29,25 +31,41 @@ export interface ReimbursementAttachment {
   createdAt: string;
 }
 
+export type ReimbursementAttachment = AttachmentRecord;
+
 export interface ReimbursementRecord extends ReimbursementInput {
   id: number;
   employeeId: number;
   employeeName: string;
   categoryName: string;
   status: ReimbursementStatus;
-  adminRemark: string;
+  adminRemark: string | null;
   submittedAt: string | null;
   archivedAt: string | null;
-  reimbursedAt: string | null;
-  batchId: number | null;
-  batchName: string | null;
-  oaId: number | null;
-  oaNumber: string;
-  attachments?: ReimbursementAttachment[];
+  reimbursedAt?: string | null;
+  batchId?: number | null;
+  batchName?: string | null;
+  oaId?: number | null;
+  oaNumber?: string | null;
+  attachments: AttachmentRecord[];
 }
 
-export function listReimbursements() {
-  return http.get<ReimbursementRecord[]>('/reimbursements');
+export interface EmployeeReimbursementFilters {
+  categoryId?: number;
+  status?: ReimbursementStatus;
+  from?: string;
+  to?: string;
+  keyword?: string;
+}
+
+export interface AdminReimbursementFilters extends EmployeeReimbursementFilters {
+  employeeId?: number;
+  reimbursed?: boolean;
+  oaId?: number;
+}
+
+export function listReimbursements(params: EmployeeReimbursementFilters = {}) {
+  return http.get<ReimbursementRecord[]>('/reimbursements', { params });
 }
 
 export function createReimbursement(payload: ReimbursementInput) {
@@ -74,26 +92,14 @@ export function deleteReimbursement(id: number) {
   return http.delete(`/reimbursements/${id}`);
 }
 
-export type AttachmentType = 'PAYMENT_VOUCHER' | 'ORDER_SCREENSHOT' | 'INVOICE';
-
 export function uploadAttachment(recordId: number, type: AttachmentType, file: File) {
   const form = new FormData();
   form.append('file', file);
-  return http.post(`/reimbursements/${recordId}/attachments?type=${type}`, form);
+  return http.post<AttachmentRecord>(`/reimbursements/${recordId}/attachments?type=${type}`, form);
 }
 
 export function deleteAttachment(attachmentId: number) {
   return http.delete(`/attachments/${attachmentId}`);
-}
-
-export interface AdminReimbursementFilters {
-  employeeId?: number;
-  categoryId?: number;
-  status?: ReimbursementStatus;
-  from?: string;
-  to?: string;
-  reimbursed?: boolean;
-  oaId?: number;
 }
 
 export function listAdminReimbursements(params: AdminReimbursementFilters = { status: 'SUBMITTED' }) {
@@ -122,6 +128,10 @@ export function unreimburse(id: number) {
 
 export function archiveRecords(ids: number[]) {
   return http.post('/admin/reimbursements/archive', { ids });
+}
+
+export function bulkUpdateReimbursements(ids: number[], action: BulkReimbursementAction) {
+  return http.post<ReimbursementRecord[]>('/admin/reimbursements/bulk-action', { ids, action });
 }
 
 export function updateOaNumber(id: number, oaId: number | null) {
