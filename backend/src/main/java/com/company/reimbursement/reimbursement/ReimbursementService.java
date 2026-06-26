@@ -2,6 +2,7 @@ package com.company.reimbursement.reimbursement;
 
 import com.company.reimbursement.attachment.AttachmentType;
 import com.company.reimbursement.attachment.ReimbursementAttachmentRepository;
+import com.company.reimbursement.batch.ReimbursementBatch;
 import com.company.reimbursement.category.ExpenseCategory;
 import com.company.reimbursement.category.ExpenseCategoryRepository;
 import com.company.reimbursement.oa.OaNumber;
@@ -17,7 +18,13 @@ import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.time.YearMonth;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -161,17 +168,8 @@ public class ReimbursementService {
     }
 
     @Transactional(readOnly = true)
-    public ReimbursementDtos.StatsResponse computeStats(List<Long> oaIds, List<Long> batchIds) {
-        List<ReimbursementRecord> scoped = records.findAll((root, query, cb) -> {
-            List<Predicate> predicates = new ArrayList<>();
-            if (oaIds != null && !oaIds.isEmpty()) {
-                predicates.add(root.get("oa").get("id").in(oaIds));
-            }
-            if (batchIds != null && !batchIds.isEmpty()) {
-                predicates.add(root.get("batch").get("id").in(batchIds));
-            }
-            return cb.and(predicates.toArray(Predicate[]::new));
-        });
+    public ReimbursementDtos.StatsResponse computeStats(List<Long> oaIds, List<Long> batchIds, List<Long> employeeIds) {
+        List<ReimbursementRecord> scoped = records.findAll(scopeSpec(oaIds, batchIds, employeeIds));
 
         long totalCount = 0, reimbursedCount = 0, unreimbursedCount = 0, draftCount = 0;
         BigDecimal totalAmount = BigDecimal.ZERO;
@@ -199,6 +197,121 @@ public class ReimbursementService {
                 reimbursedCount, reimbursedAmount,
                 unreimbursedCount, unreimbursedAmount,
                 draftCount, draftAmount);
+    }
+
+    private static final Pattern MONTHLY_BATCH_PATTERN = Pattern.compile("^(\\d{4})年(\\d{1,2})月报销批次$");
+
+    private Specification<ReimbursementRecord> scopeSpec(List<Long> oaIds, List<Long> batchIds, List<Long> employeeIds) {
+        return (root, query, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
+            if (oaIds != null && !oaIds.isEmpty()) {
+                predicates.add(root.get("oa").get("id").in(oaIds));
+            }
+            if (batchIds != null && !batchIds.isEmpty()) {
+                predicates.add(root.get("batch").get("id").in(batchIds));
+            }
+            if (employeeIds != null && !employeeIds.isEmpty()) {
+                predicates.add(root.get("employee").get("id").in(employeeIds));
+            }
+            return cb.and(predicates.toArray(Predicate[]::new));
+        };
+    }
+
+    @Transactional(readOnly = true)
+    public ReimbursementDtos.PersonnelMatrixResponse computePersonnelMatrix(
+            List<Long> oaIds, List<Long> batchIds, List<Long> employeeIds) {
+        List<ReimbursementRecord> scoped = records.findAll(scopeSpec(oaIds, batchIds, employeeIds));
+
+        Map<Long, ReimbursementDtos.MonthlyBatchColumn> monthlyBatches = new LinkedHashMap<>();
+        for (ReimbursementRecord record : scoped) {
+            ReimbursementBatch batch = record.getBatch();
+            if (batch == null) {
+                continue;
+            }
+            Matcher matcher = MONTHLY_BATCH_PATTERN.matcher(batch.getName());
+            if (matcher.matches()) {
+                monthlyBatches.putIfAbsent(batch.getId(), new ReimbursementDtos.MonthlyBatchColumn(
+                        batch.getId(), batch.getName(),
+                        YearMonth.of(Integer.parseInt(matcher.group(1)), Integer.parseInt(matcher.group(2))).toString()));
+            }
+        }
+        List<ReimbursementDtos.MonthlyBatchColumn> columns = new ArrayList<>(monthlyBatches.values());
+        columns.sort(Comparator.comparing(ReimbursementDtos.MonthlyBatchColumn::monthLabel));
+
+        Map<Long, Integer> columnIndex = new HashMap<>();
+        for (int i = 0; i < columns.size(); i++) {
+            columnIndex.put(columns.get(i).batchId(), i);
+        }
+
+        Map<Long, ReimbursementDtos.MatrixCell[]> perEmployee = new LinkedHashMap<>();
+        Map<Long, ReimbursementDtos.MatrixCell> perEmployeeUnassigned = new HashMap<>();
+        Map<Long, User> employees = new LinkedHashMap<>();
+        for (ReimbursementRecord record : scoped) {
+            BigDecimal amount = record.getAmount() != null ? record.getAmount() : BigDecimal.ZERO;
+            User employee = record.getEmployee();
+            Long empId = employee.getId();
+            employees.putIfAbsent(empId, employee);
+            ReimbursementDtos.MatrixCell[] cells = perEmployee.computeIfAbsent(empId, k -> emptyCells(columns.size()));
+            ReimbursementBatch batch = record.getBatch();
+            Integer idx = batch == null ? null : columnIndex.get(batch.getId());
+            if (idx != null) {
+                cells[idx] = cells[idx].add(amount);
+            } else {
+                perEmployeeUnassigned.merge(empId, ReimbursementDtos.MatrixCell.zero().add(amount), ReimbursementDtos.MatrixCell::combine);
+            }
+        }
+
+        List<ReimbursementDtos.MatrixCell> columnTotals = emptyCellList(columns.size());
+        ReimbursementDtos.MatrixCell unassignedTotal = ReimbursementDtos.MatrixCell.zero();
+        BigDecimal grandAmount = BigDecimal.ZERO;
+        long grandCount = 0;
+
+        List<ReimbursementDtos.EmployeeMatrixRow> rows = new ArrayList<>();
+        for (Map.Entry<Long, ReimbursementDtos.MatrixCell[]> entry : perEmployee.entrySet()) {
+            Long empId = entry.getKey();
+            ReimbursementDtos.MatrixCell[] cells = entry.getValue();
+            User employee = employees.get(empId);
+            ReimbursementDtos.MatrixCell unassigned = perEmployeeUnassigned.getOrDefault(empId, ReimbursementDtos.MatrixCell.zero());
+
+            BigDecimal rowAmount = BigDecimal.ZERO;
+            long rowCount = 0;
+            List<ReimbursementDtos.MatrixCell> cellList = new ArrayList<>(cells.length);
+            for (int i = 0; i < cells.length; i++) {
+                cellList.add(cells[i]);
+                columnTotals.set(i, columnTotals.get(i).combine(cells[i]));
+                rowAmount = rowAmount.add(cells[i].amount());
+                rowCount += cells[i].count();
+            }
+            unassignedTotal = unassignedTotal.combine(unassigned);
+            rowAmount = rowAmount.add(unassigned.amount());
+            rowCount += unassigned.count();
+            grandAmount = grandAmount.add(rowAmount);
+            grandCount += rowCount;
+
+            rows.add(new ReimbursementDtos.EmployeeMatrixRow(
+                    empId, employee.getDisplayName(), employee.getDepartment(),
+                    cellList, unassigned, new ReimbursementDtos.MatrixCell(rowAmount, rowCount)));
+        }
+
+        ReimbursementDtos.MatrixTotals totals = new ReimbursementDtos.MatrixTotals(
+                columnTotals, unassignedTotal, new ReimbursementDtos.MatrixCell(grandAmount, grandCount));
+        return new ReimbursementDtos.PersonnelMatrixResponse(columns, rows, totals);
+    }
+
+    private ReimbursementDtos.MatrixCell[] emptyCells(int size) {
+        ReimbursementDtos.MatrixCell[] cells = new ReimbursementDtos.MatrixCell[size];
+        for (int i = 0; i < size; i++) {
+            cells[i] = ReimbursementDtos.MatrixCell.zero();
+        }
+        return cells;
+    }
+
+    private List<ReimbursementDtos.MatrixCell> emptyCellList(int size) {
+        List<ReimbursementDtos.MatrixCell> list = new ArrayList<>(size);
+        for (int i = 0; i < size; i++) {
+            list.add(ReimbursementDtos.MatrixCell.zero());
+        }
+        return list;
     }
 
     @Transactional

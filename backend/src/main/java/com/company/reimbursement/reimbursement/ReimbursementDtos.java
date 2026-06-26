@@ -39,6 +39,44 @@ public class ReimbursementDtos {
             long draftCount, BigDecimal draftAmount) {
     }
 
+    public record MatrixCell(BigDecimal amount, long count) {
+        public static MatrixCell zero() {
+            return new MatrixCell(BigDecimal.ZERO, 0L);
+        }
+
+        public MatrixCell add(BigDecimal amount) {
+            return new MatrixCell(this.amount.add(amount), this.count + 1);
+        }
+
+        public MatrixCell combine(MatrixCell other) {
+            return new MatrixCell(this.amount.add(other.amount), this.count + other.count);
+        }
+    }
+
+    public record MonthlyBatchColumn(Long batchId, String batchName, String monthLabel) {
+    }
+
+    public record EmployeeMatrixRow(
+            Long employeeId,
+            String employeeName,
+            String department,
+            List<MatrixCell> cells,
+            MatrixCell unassigned,
+            MatrixCell total) {
+    }
+
+    public record MatrixTotals(
+            List<MatrixCell> columnTotals,
+            MatrixCell unassignedTotal,
+            MatrixCell grandTotal) {
+    }
+
+    public record PersonnelMatrixResponse(
+            List<MonthlyBatchColumn> columns,
+            List<EmployeeMatrixRow> rows,
+            MatrixTotals totals) {
+    }
+
     public record AttachmentResponse(Long id, AttachmentType type, String originalFilename, String contentType, long sizeBytes, Instant createdAt) {
         public static AttachmentResponse from(ReimbursementAttachment attachment) {
             return new AttachmentResponse(

@@ -40,10 +40,23 @@ public class AdminReimbursementController {
     @GetMapping("/stats")
     ReimbursementDtos.StatsResponse stats(
             @RequestParam(required = false) List<Long> oaIds,
-            @RequestParam(required = false) List<Long> batchIds) {
+            @RequestParam(required = false) List<Long> batchIds,
+            @RequestParam(required = false) List<Long> employeeIds) {
         return service.computeStats(
                 oaIds != null ? oaIds : List.of(),
-                batchIds != null ? batchIds : List.of());
+                batchIds != null ? batchIds : List.of(),
+                employeeIds != null ? employeeIds : List.of());
+    }
+
+    @GetMapping("/stats/personnel-matrix")
+    ReimbursementDtos.PersonnelMatrixResponse personnelMatrix(
+            @RequestParam(required = false) List<Long> oaIds,
+            @RequestParam(required = false) List<Long> batchIds,
+            @RequestParam(required = false) List<Long> employeeIds) {
+        return service.computePersonnelMatrix(
+                oaIds != null ? oaIds : List.of(),
+                batchIds != null ? batchIds : List.of(),
+                employeeIds != null ? employeeIds : List.of());
     }
 
     @GetMapping("/{id}")

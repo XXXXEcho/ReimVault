@@ -21,6 +21,32 @@ const STATS = {
   draftAmount: 50
 };
 
+const MATRIX = {
+  columns: [
+    { batchId: 10, batchName: '2026年4月报销批次', monthLabel: '2026-04' },
+    { batchId: 11, batchName: '2026年5月报销批次', monthLabel: '2026-05' }
+  ],
+  rows: [
+    {
+      employeeId: 1,
+      employeeName: '张三',
+      department: '研发部',
+      cells: [{ amount: 100, count: 1 }, { amount: 200, count: 1 }],
+      unassigned: { amount: 80, count: 2 },
+      total: { amount: 380, count: 4 }
+    }
+  ],
+  totals: {
+    columnTotals: [{ amount: 100, count: 1 }, { amount: 200, count: 1 }],
+    unassignedTotal: { amount: 80, count: 2 },
+    grandTotal: { amount: 380, count: 4 }
+  }
+};
+
+const EMPLOYEES = [
+  { id: 1, username: 'zhangsan', displayName: '张三', department: '研发部', role: 'EMPLOYEE', enabled: true }
+];
+
 describe('stats view', () => {
   beforeEach(() => {
     setActivePinia(createPinia());
@@ -30,7 +56,9 @@ describe('stats view', () => {
     vi.mocked(http.get).mockImplementation((url: string) => {
       if (url === '/oa-numbers') return Promise.resolve({ data: [{ id: 1, number: '绿洲计划经费 30280501' }] });
       if (url === '/admin/batches') return Promise.resolve({ data: [{ id: 2, name: '2026年6月报销批次', description: '', createdAt: '', archivedAt: null, items: [] }] });
-      if (url.startsWith('/admin/reimbursements/stats')) return Promise.resolve({ data: STATS });
+      if (url === '/admin/employees') return Promise.resolve({ data: EMPLOYEES });
+      if (url === '/admin/reimbursements/stats/personnel-matrix') return Promise.resolve({ data: MATRIX });
+      if (url === '/admin/reimbursements/stats') return Promise.resolve({ data: STATS });
       return Promise.resolve({ data: [] });
     });
   });
@@ -71,6 +99,27 @@ describe('stats view', () => {
       expect(last).toBeTruthy();
       const params = (last![1] as { params?: URLSearchParams })?.params;
       expect(params?.get('oaIds')).toBe('1');
+    });
+  });
+
+  it('renders personnel matrix and refetches when an employee is selected', async () => {
+    const wrapper = mount(StatsAdminView, { global: { stubs: ['el-button'] } });
+    await vi.waitFor(() => expect(wrapper.find('[data-test="matrix-row-1"]').exists()).toBe(true));
+
+    expect(wrapper.find('[data-test="matrix-column-10"]').text()).toContain('2026年4月报销批次');
+    expect(wrapper.find('[data-test="matrix-cell-1-10"]').text()).toContain('100.00');
+    expect(wrapper.find('[data-test="matrix-cell-1-unassigned"]').text()).toContain('80.00');
+    expect(wrapper.find('[data-test="matrix-totals-row"]').text()).toContain('380.00');
+
+    vi.mocked(http.get).mockClear();
+    await wrapper.find('[data-test="employee-filter-group"] input[type="checkbox"]').setValue(true);
+
+    await vi.waitFor(() => {
+      const matrixCalls = vi.mocked(http.get).mock.calls.filter((c) => (c[0] as string).endsWith('/personnel-matrix'));
+      const last = matrixCalls[matrixCalls.length - 1];
+      expect(last).toBeTruthy();
+      const params = (last![1] as { params?: URLSearchParams })?.params;
+      expect(params?.get('employeeIds')).toBe('1');
     });
   });
 });

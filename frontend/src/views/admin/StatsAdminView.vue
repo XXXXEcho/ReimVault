@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
-import { getStats, type ReimbursementStats } from '../../api/stats';
+import { getPersonnelMatrix, getStats, type PersonnelMatrix, type ReimbursementStats } from '../../api/stats';
 import { listOaNumbers, type OaNumber } from '../../api/oa';
 import { listBatches, type Batch } from '../../api/batches';
+import { searchEmployees, type UserRecord } from '../../api/users';
+import PersonnelMatrixView from '../../components/PersonnelMatrix.vue';
 
 type MetricType = 'amount' | 'count';
 type MetricGroup = 'total' | 'reimbursed' | 'unreimbursed' | 'draft';
@@ -45,10 +47,13 @@ const PRESETS: Preset[] = [
 
 const oaNumbers = ref<OaNumber[]>([]);
 const batches = ref<Batch[]>([]);
+const employees = ref<UserRecord[]>([]);
 const selectedOaIds = ref<number[]>([]);
 const selectedBatchIds = ref<number[]>([]);
+const selectedEmployeeIds = ref<number[]>([]);
 const selectedMetrics = ref<string[]>(PRESETS[0].metrics);
 const stats = ref<ReimbursementStats | null>(null);
+const matrix = ref<PersonnelMatrix | null>(null);
 const error = ref('');
 const loading = ref(false);
 
@@ -65,6 +70,9 @@ const scopeSummary = computed(() => {
   }
   if (selectedBatchIds.value.length) {
     parts.push(batches.value.filter((b) => selectedBatchIds.value.includes(b.id)).map((b) => b.name).join('、'));
+  }
+  if (selectedEmployeeIds.value.length) {
+    parts.push(employees.value.filter((e) => selectedEmployeeIds.value.includes(e.id)).map((e) => e.displayName).join('、'));
   }
   return parts.length ? parts.join(' · ') : '全部记录';
 });
@@ -90,11 +98,16 @@ async function loadStats() {
   loading.value = true;
   error.value = '';
   try {
-    const response = await getStats(selectedOaIds.value, selectedBatchIds.value);
-    stats.value = response.data;
+    const [statsResponse, matrixResponse] = await Promise.all([
+      getStats(selectedOaIds.value, selectedBatchIds.value, selectedEmployeeIds.value),
+      getPersonnelMatrix(selectedOaIds.value, selectedBatchIds.value, selectedEmployeeIds.value)
+    ]);
+    stats.value = statsResponse.data;
+    matrix.value = matrixResponse.data;
   } catch (err) {
     error.value = errorMessage(err);
     stats.value = null;
+    matrix.value = null;
   } finally {
     loading.value = false;
   }
@@ -109,9 +122,10 @@ function errorMessage(err: unknown) {
 }
 
 onMounted(async () => {
-  const [oaResponse, batchResponse] = await Promise.all([listOaNumbers(), listBatches()]);
+  const [oaResponse, batchResponse, employeeResponse] = await Promise.all([listOaNumbers(), listBatches(), searchEmployees('')]);
   oaNumbers.value = oaResponse.data;
   batches.value = batchResponse.data;
+  employees.value = employeeResponse.data;
   await loadStats();
 });
 </script>
@@ -145,6 +159,16 @@ onMounted(async () => {
                 <span>{{ batch.name }}</span>
               </label>
               <p v-if="!batches.length" class="scope-empty">暂无批次</p>
+            </div>
+          </div>
+          <div class="scope-col" data-test="employee-filter-group">
+            <div class="scope-col-head"><span>员工</span><small>已选 {{ selectedEmployeeIds.length }}</small></div>
+            <div class="scope-list">
+              <label v-for="employee in employees" :key="employee.id" class="scope-option">
+                <input type="checkbox" :value="employee.id" v-model="selectedEmployeeIds" @change="loadStats" />
+                <span>{{ employee.displayName }}（{{ employee.department }}）</span>
+              </label>
+              <p v-if="!employees.length" class="scope-empty">暂无员工</p>
             </div>
           </div>
         </div>
@@ -195,6 +219,8 @@ onMounted(async () => {
         </div>
       </div>
     </div>
+
+    <PersonnelMatrixView :matrix="matrix" />
   </section>
 </template>
 
@@ -208,7 +234,7 @@ onMounted(async () => {
 .control-title { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; color: #0f172a; font-size: 14px; font-weight: 800; }
 .mode-tag { padding: 2px 10px; border-radius: 999px; background: #eef2ff; color: #4338ca; font-size: 11px; font-weight: 800; }
 
-.scope-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.scope-cols { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
 .scope-col { display: flex; flex-direction: column; min-width: 0; }
 .scope-col-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; color: #334155; font-size: 12px; font-weight: 800; }
 .scope-col-head small { color: #94a3b8; font-weight: 700; }
