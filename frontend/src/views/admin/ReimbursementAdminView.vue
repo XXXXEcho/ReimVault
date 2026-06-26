@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
+import { ElMessage, ElMessageBox } from 'element-plus';
 import EmptyState from '../../components/EmptyState.vue';
 import MaterialPreviewer from '../../components/MaterialPreviewer.vue';
 import MetricCard from '../../components/MetricCard.vue';
@@ -7,7 +8,9 @@ import RecordDrawer from '../../components/RecordDrawer.vue';
 import WorkbenchFilters from '../../components/WorkbenchFilters.vue';
 import WorkbenchRecordTable from '../../components/WorkbenchRecordTable.vue';
 import {
+  bulkUpdateReimbursements,
   listAdminReimbursements,
+  type BulkReimbursementAction,
   type AdminReimbursementFilters,
   type ReimbursementRecord,
   type ReimbursementStatus
@@ -15,8 +18,11 @@ import {
 
 const records = ref<ReimbursementRecord[]>([]);
 const selected = ref<ReimbursementRecord | null>(null);
+const selectedIds = ref<number[]>([]);
 const previewAttachmentId = ref<number | null>(null);
 const filters = ref({ employeeId: '', categoryId: '', status: 'SUBMITTED', from: '', to: '', keyword: '' });
+const loading = ref(false);
+const error = ref('');
 
 function params(): AdminReimbursementFilters {
   const next: AdminReimbursementFilters = {};
@@ -30,8 +36,17 @@ function params(): AdminReimbursementFilters {
 }
 
 async function load() {
-  const response = await listAdminReimbursements(params());
-  records.value = response.data;
+  loading.value = true;
+  error.value = '';
+  try {
+    const response = await listAdminReimbursements(params());
+    records.value = response.data;
+    selectedIds.value = selectedIds.value.filter((id) => records.value.some((record) => record.id === id));
+  } catch (err) {
+    error.value = apiErrorMessage(err);
+  } finally {
+    loading.value = false;
+  }
 }
 
 async function refreshSelected(record: ReimbursementRecord) {
@@ -55,6 +70,35 @@ const metrics = computed(() => ({
 function resetFilters() {
   filters.value = { employeeId: '', categoryId: '', status: 'SUBMITTED', from: '', to: '', keyword: '' };
   void load();
+}
+
+function apiErrorMessage(err: unknown) {
+  if (typeof err === 'object' && err && 'response' in err) {
+    const response = (err as { response?: { data?: { message?: string } } }).response;
+    if (response?.data?.message) return response.data.message;
+  }
+  return '操作失败，请稍后重试';
+}
+
+async function runBulkAction(action: BulkReimbursementAction, label: string) {
+  if (!selectedIds.value.length) return;
+  try {
+    await ElMessageBox.confirm(`确认对 ${selectedIds.value.length} 条记录执行“${label}”？`, '批量处理确认', {
+      confirmButtonText: label,
+      cancelButtonText: '取消',
+      type: action === 'REJECT' ? 'warning' : 'info'
+    });
+  } catch {
+    return;
+  }
+  try {
+    await bulkUpdateReimbursements(selectedIds.value, action);
+    ElMessage.success(`${label}完成`);
+    selectedIds.value = [];
+    await load();
+  } catch (err) {
+    ElMessage.error(apiErrorMessage(err));
+  }
 }
 
 function openDrawer(record: ReimbursementRecord) {
@@ -81,14 +125,28 @@ onMounted(load);
 
     <div class="metrics-grid">
       <MetricCard title="草稿" :value="metrics.draft" />
-      <MetricCard title="已提交" :value="metrics.submitted" tone="success" />
+      <MetricCard title="待报销" :value="metrics.submitted" tone="success" />
       <MetricCard title="已归档" :value="metrics.archived" />
       <MetricCard title="材料不完整" :value="metrics.incomplete" tone="danger" />
     </div>
 
     <WorkbenchFilters v-model="filters" admin @apply="load" @reset="resetFilters" />
 
-    <WorkbenchRecordTable v-if="records.length" :records="records" admin @open="openDrawer" />
+    <p v-if="error" class="notice notice--error" role="alert">
+      {{ error }}
+      <button type="button" @click="load">重试</button>
+    </p>
+
+    <div v-if="records.length" class="bulk-bar enterprise-card">
+      <span>已选择 {{ selectedIds.length }} 条</span>
+      <button type="button" :disabled="!selectedIds.length" @click="runBulkAction('REIMBURSE', '标记已报销')">标记已报销</button>
+      <button type="button" :disabled="!selectedIds.length" @click="runBulkAction('ARCHIVE', '归档')">归档</button>
+      <button type="button" :disabled="!selectedIds.length" @click="runBulkAction('REJECT', '打回')">打回</button>
+      <button type="button" :disabled="!selectedIds.length" @click="selectedIds = []">清空选择</button>
+    </div>
+
+    <p v-if="loading" class="loading">加载报销记录中...</p>
+    <WorkbenchRecordTable v-else-if="records.length" v-model:selected-ids="selectedIds" :records="records" admin @open="openDrawer" />
     <EmptyState v-else title="暂无待处理记录" description="符合筛选条件的报销会显示在这里。" />
 
     <RecordDrawer
@@ -131,6 +189,53 @@ onMounted(load);
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
   gap: var(--space-4);
+}
+
+.bulk-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+}
+
+.bulk-bar span {
+  color: var(--color-text-muted);
+  font-weight: 700;
+}
+
+.bulk-bar button,
+.notice button {
+  min-height: 36px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 0 var(--space-3);
+  background: var(--color-surface);
+  color: var(--color-primary-strong);
+  cursor: pointer;
+}
+
+.bulk-bar button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.notice {
+  margin: 0;
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+  font-weight: 700;
+}
+
+.notice--error {
+  background: var(--color-danger-soft);
+  color: var(--color-danger);
+}
+
+.loading {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-weight: 700;
 }
 
 </style>

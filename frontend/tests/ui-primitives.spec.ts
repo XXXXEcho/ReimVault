@@ -10,7 +10,7 @@ import ConfirmAction from '../src/components/ConfirmAction.vue';
 describe('UI primitives', () => {
   it('renders status labels with semantic class', () => {
     const wrapper = mount(StatusTag, { props: { status: 'SUBMITTED' } });
-    expect(wrapper.text()).toBe('已提交');
+    expect(wrapper.text()).toBe('待报销');
     expect(wrapper.classes()).toContain('status-submitted');
   });
 

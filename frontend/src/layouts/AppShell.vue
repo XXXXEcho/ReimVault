@@ -14,12 +14,16 @@ const employeeNav = [
 const adminNav = [
   { to: '/admin/reimbursements', label: '报销工作台', icon: 'dashboard' },
   { to: '/admin/batches', label: '批次管理', icon: 'archive' },
-  { to: '/admin/users', label: '用户管理', icon: 'users' },
+  { to: '/admin/users', label: '用户管理', icon: 'users', adminOnly: true },
   { to: '/admin/categories', label: '分类管理', icon: 'tags' }
 ];
 
 const navigationItems = computed(() => (
-  auth.user?.role === 'ADMIN' ? [...employeeNav, ...adminNav] : employeeNav
+  auth.user?.role === 'ADMIN'
+    ? [...employeeNav, ...adminNav]
+    : auth.user?.role === 'SPECIALIST'
+      ? [...employeeNav, ...adminNav.filter((item) => !item.adminOnly)]
+      : employeeNav
 ));
 
 const pageTitle = computed(() => String(routeMeta.value.title ?? '报销材料管理系统'));

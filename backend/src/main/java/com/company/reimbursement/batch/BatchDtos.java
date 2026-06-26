@@ -8,6 +8,9 @@ public class BatchDtos {
     public record CreateBatchRequest(String name, String description) {
     }
 
+    public record AddBatchItemsRequest(List<Long> recordIds) {
+    }
+
     public record BatchItemResponse(Long id, Long recordId, String employeeName, String categoryName) {
         public static BatchItemResponse from(ReimbursementBatchItem item) {
             ReimbursementRecord record = item.getRecord();

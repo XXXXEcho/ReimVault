@@ -17,7 +17,11 @@ const records = [
 describe('workbench pages', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(http.get).mockResolvedValue({ data: records });
+    vi.mocked(http.get).mockImplementation((url: string) => {
+      if (url === '/categories' || url === '/admin/categories') return Promise.resolve({ data: [{ id: 1, name: '差旅费', enabled: true, sortOrder: 1, remark: '' }] });
+      if (url === '/admin/employees') return Promise.resolve({ data: [{ id: 2, username: 'emp', displayName: '员工一', department: '研发部', role: 'EMPLOYEE', enabled: true }] });
+      return Promise.resolve({ data: records });
+    });
   });
 
   it('renders employee metrics and opens drawer by row click', async () => {
@@ -25,7 +29,7 @@ describe('workbench pages', () => {
     await flushPromises();
 
     expect(wrapper.text()).toContain('草稿');
-    expect(wrapper.text()).toContain('已提交');
+    expect(wrapper.text()).toContain('待报销');
     expect(wrapper.text()).toContain('材料不完整');
     await wrapper.find('[data-test="record-row-1"]').trigger('click');
     expect(wrapper.text()).toContain('记录详情');
@@ -34,7 +38,12 @@ describe('workbench pages', () => {
 
   it('reloads employee records and keeps selected record synced after drawer saved event', async () => {
     const refreshedRecords = records.map((record) => (record.id === 2 ? { ...record, purpose: '晚餐', attachments: [] } : record));
-    vi.mocked(http.get).mockResolvedValueOnce({ data: records }).mockResolvedValueOnce({ data: refreshedRecords });
+    let reimbursementCalls = 0;
+    vi.mocked(http.get).mockImplementation((url: string) => {
+      if (url === '/categories') return Promise.resolve({ data: [{ id: 1, name: '差旅费', enabled: true, sortOrder: 1, remark: '' }] });
+      reimbursementCalls += 1;
+      return Promise.resolve({ data: reimbursementCalls === 1 ? records : refreshedRecords });
+    });
     const wrapper = mount(EmployeeWorkbench, { global: { stubs: ['RouterLink'] } });
     await flushPromises();
     await wrapper.find('[data-test="record-row-2"]').trigger('click');
@@ -43,7 +52,7 @@ describe('workbench pages', () => {
     wrapper.findComponent({ name: 'RecordDrawer' }).vm.$emit('saved', records[1]);
     await flushPromises();
 
-    expect(http.get).toHaveBeenCalledTimes(2);
+    expect(reimbursementCalls).toBe(2);
     expect(wrapper.text()).toContain('晚餐');
     expect(wrapper.text()).not.toContain('午餐');
   });
@@ -90,7 +99,7 @@ describe('workbench pages', () => {
     await flushPromises();
 
     expect(wrapper.text()).toContain('草稿');
-    expect(wrapper.text()).toContain('已提交');
+    expect(wrapper.text()).toContain('待报销');
     expect(wrapper.text()).toContain('已归档');
     expect(wrapper.text()).toContain('材料不完整');
 

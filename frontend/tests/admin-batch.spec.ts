@@ -60,7 +60,14 @@ describe('admin views', () => {
   });
 
   it('passes employee, category, status, and payment date filters to admin reimbursement API', async () => {
+    vi.mocked(http.get).mockImplementation((url: string) => {
+      if (url === '/admin/categories') return Promise.resolve({ data: [{ id: 7, name: '差旅', enabled: true, sortOrder: 1, remark: '' }] });
+      if (url === '/admin/employees') return Promise.resolve({ data: [{ id: 11, username: 'emp', displayName: '员工一', department: '研发部', role: 'EMPLOYEE', enabled: true }] });
+      return Promise.resolve({ data: [] });
+    });
     const wrapper = mount(ReimbursementAdminView, { global: { stubs: ['el-table', 'el-table-column', 'el-form', 'el-form-item', 'el-input', 'el-select', 'el-option', 'el-button'] } });
+    await Promise.resolve();
+    await Promise.resolve();
 
     await wrapper.find('[aria-label="员工ID"]').setValue('11');
     await wrapper.find('[aria-label="分类ID"]').setValue('7');
@@ -69,7 +76,7 @@ describe('admin views', () => {
     await wrapper.find('[aria-label="结束日期"]').setValue('2026-05-31');
     await wrapper.find('form.filters').trigger('submit');
 
-    expect(http.get).toHaveBeenCalledWith('/admin/reimbursements', {
+    expect(http.get).toHaveBeenLastCalledWith('/admin/reimbursements', {
       params: {
         employeeId: 11,
         categoryId: 7,
@@ -93,25 +100,34 @@ describe('admin views', () => {
       return element;
     });
     vi.mocked(http.get).mockImplementation((url: string) => {
+      if (url === '/admin/categories') return Promise.resolve({ data: [] });
+      if (url === '/admin/employees') return Promise.resolve({ data: [] });
+      if (url === '/admin/reimbursements') return Promise.resolve({ data: [{ id: 99, employeeId: 2, employeeName: '员工一', amount: 128, categoryId: 3, categoryName: '办公用品', purpose: '五月命中', paymentTime: '2026-05-10T10:00:00Z', status: 'SUBMITTED', adminRemark: '', submittedAt: '2026-05-11T10:00:00Z', archivedAt: null, attachments: [] }] });
       if (url === '/admin/batches/1') return Promise.resolve({ data: { id: 1, name: '五月批次', items: [] } });
       if (url === '/admin/batches/1/export/excel') return Promise.resolve({ data: new Blob(['excel']) });
       if (url === '/admin/batches/1/export/attachments') return Promise.resolve({ data: new Blob(['zip']) });
       return Promise.resolve({ data: [] });
     });
-    vi.mocked(http.post).mockResolvedValue({ data: {} });
+    vi.mocked(http.post).mockImplementation((url: string) => {
+      if (url === '/admin/batches/1/items') return Promise.resolve({ data: { id: 1, name: '五月批次', items: [{ id: 1, recordId: 99, employeeName: '员工一', categoryName: '办公用品' }] } });
+      return Promise.resolve({ data: {} });
+    });
 
     const wrapper = mount(BatchAdminView, { global: { stubs: ['el-table', 'el-table-column', 'el-form', 'el-form-item', 'el-input', 'el-button'] } });
+    await Promise.resolve();
+    await Promise.resolve();
     expect(wrapper.text()).toContain('批次列表');
     expect(wrapper.findAll('.enterprise-card.batch-card')).toHaveLength(4);
     expect(wrapper.findAll('.table-scroll')).toHaveLength(2);
     await wrapper.find('[aria-label="批次ID"]').setValue('1');
     await wrapper.find('[data-test="load-batch"]').trigger('click');
-    await wrapper.find('[aria-label="报销记录ID"]').setValue('99');
-    await wrapper.find('[data-test="add-record"]').trigger('click');
+    await Promise.resolve();
+    await wrapper.find('[aria-label="选择记录99"]').setValue(true);
+    await wrapper.findAll('button').find((button) => button.text() === '加入选中记录')?.trigger('click');
     await wrapper.find('[data-test="export-excel"]').trigger('click');
     await wrapper.find('[data-test="export-attachments"]').trigger('click');
 
-    expect(http.post).toHaveBeenCalledWith('/admin/batches/1/items/99');
+    expect(http.post).toHaveBeenCalledWith('/admin/batches/1/items', { recordIds: [99] });
     expect(http.get).toHaveBeenCalledWith('/admin/batches/1/export/excel', { responseType: 'blob' });
     expect(http.get).toHaveBeenCalledWith('/admin/batches/1/export/attachments', { responseType: 'blob' });
     expect(createObjectURL).toHaveBeenCalledTimes(2);
@@ -121,6 +137,8 @@ describe('admin views', () => {
 
   it('archives the loaded batch through the archive endpoint', async () => {
     vi.mocked(http.get).mockImplementation((url: string) => {
+      if (url === '/admin/categories') return Promise.resolve({ data: [] });
+      if (url === '/admin/employees') return Promise.resolve({ data: [] });
       if (url === '/admin/batches/5') return Promise.resolve({ data: { id: 5, name: '五月批次', items: [] } });
       return Promise.resolve({ data: [] });
     });

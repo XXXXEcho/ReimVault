@@ -17,9 +17,9 @@ const router = createRouter({
     { path: '/reimbursements/new', component: ReimbursementEditView, meta: { title: '新建报销', description: '创建草稿并上传材料' } },
     { path: '/reimbursements/:id', component: ReimbursementEditView, meta: { title: '编辑报销', description: '维护草稿材料' } },
     { path: '/admin/users', component: UserAdminView, meta: { title: '用户管理', description: '维护员工和管理员账号', requiresAdmin: true } },
-    { path: '/admin/categories', component: CategoryAdminView, meta: { title: '分类管理', description: '维护报销用途分类', requiresAdmin: true } },
-    { path: '/admin/reimbursements', component: ReimbursementAdminView, meta: { title: '报销工作台', description: '集中处理员工提交的材料', requiresAdmin: true } },
-    { path: '/admin/batches', component: BatchAdminView, meta: { title: '批次管理', description: '整理、导出和归档材料', requiresAdmin: true } }
+    { path: '/admin/categories', component: CategoryAdminView, meta: { title: '分类管理', description: '维护报销用途分类', requiresManagement: true } },
+    { path: '/admin/reimbursements', component: ReimbursementAdminView, meta: { title: '报销工作台', description: '集中处理员工提交的材料', requiresManagement: true } },
+    { path: '/admin/batches', component: BatchAdminView, meta: { title: '批次管理', description: '整理、导出和归档材料', requiresManagement: true } }
   ]
 });
 
@@ -34,6 +34,7 @@ router.beforeEach(async (to) => {
     }
   }
   if (to.meta.requiresAdmin && auth.user?.role !== 'ADMIN') return '/reimbursements';
+  if (to.meta.requiresManagement && auth.user?.role !== 'ADMIN' && auth.user?.role !== 'SPECIALIST') return '/reimbursements';
   return true;
 });
 

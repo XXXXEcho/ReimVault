@@ -32,6 +32,10 @@ export function addBatchItem(batchId: number, recordId: number) {
   return http.post(`/admin/batches/${batchId}/items/${recordId}`);
 }
 
+export function addBatchItems(batchId: number, recordIds: number[]) {
+  return http.post<Batch>(`/admin/batches/${batchId}/items`, { recordIds });
+}
+
 export function removeBatchItem(batchId: number, recordId: number) {
   return http.delete(`/admin/batches/${batchId}/items/${recordId}`);
 }

@@ -77,6 +77,21 @@ public class ReimbursementService {
                 .toList();
     }
 
+    @Transactional
+    public List<ReimbursementDtos.RecordResponse> bulkAction(ReimbursementDtos.BulkActionRequest request) {
+        if (request.ids() == null || request.ids().isEmpty()) {
+            throw new IllegalArgumentException("请选择要处理的报销记录");
+        }
+        if (request.action() == null) {
+            throw new IllegalArgumentException("请选择批量操作");
+        }
+        return request.ids().stream()
+                .map(id -> records.findById(id).orElseThrow(() -> new EntityNotFoundException("报销记录不存在")))
+                .peek(record -> applyBulkAction(record, request.action()))
+                .map(this::response)
+                .toList();
+    }
+
     private ReimbursementDtos.RecordResponse response(ReimbursementRecord record) {
         return ReimbursementDtos.RecordResponse.from(record, attachments.findByRecord(record));
     }
@@ -120,6 +135,14 @@ public class ReimbursementService {
         ReimbursementRecord record = records.findById(id).orElseThrow(() -> new EntityNotFoundException("报销记录不存在"));
         record.setAdminRemark(request.adminRemark());
         return response(record);
+    }
+
+    private void applyBulkAction(ReimbursementRecord record, ReimbursementDtos.BulkAction action) {
+        switch (action) {
+            case REIMBURSE, ARCHIVE -> record.archive();
+            case UNREIMBURSE -> record.restoreSubmitted();
+            case REJECT -> record.rejectToDraft();
+        }
     }
 
     private ReimbursementRecord getOwnedRecord(String username, Long id) {

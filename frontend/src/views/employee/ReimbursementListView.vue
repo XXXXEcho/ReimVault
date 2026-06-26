@@ -77,7 +77,7 @@ onMounted(load);
 
     <div class="metrics-grid">
       <MetricCard title="草稿" :value="metrics.draft" />
-      <MetricCard title="已提交" :value="metrics.submitted" tone="success" />
+      <MetricCard title="待报销" :value="metrics.submitted" tone="success" />
       <MetricCard title="已归档" :value="metrics.archived" />
       <MetricCard title="材料不完整" :value="metrics.incomplete" tone="danger" />
     </div>

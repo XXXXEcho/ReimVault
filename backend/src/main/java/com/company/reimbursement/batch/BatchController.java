@@ -13,7 +13,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/admin/batches")
-@PreAuthorize("hasRole('ADMIN')")
+@PreAuthorize("hasAnyRole('ADMIN','SPECIALIST')")
 public class BatchController {
     private final BatchService service;
 
@@ -39,6 +39,11 @@ public class BatchController {
     @PostMapping("/{id}/items/{recordId}")
     BatchDtos.BatchResponse addItem(@PathVariable Long id, @PathVariable Long recordId) {
         return service.addItem(id, recordId);
+    }
+
+    @PostMapping("/{id}/items")
+    BatchDtos.BatchResponse addItems(@PathVariable Long id, @RequestBody BatchDtos.AddBatchItemsRequest request) {
+        return service.addItems(id, request.recordIds());
     }
 
     @DeleteMapping("/{id}/items/{recordId}")

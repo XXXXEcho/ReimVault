@@ -2,6 +2,7 @@ import http from './http';
 
 export type ReimbursementStatus = 'DRAFT' | 'SUBMITTED' | 'ARCHIVED';
 export type AttachmentType = 'PAYMENT_VOUCHER' | 'ORDER_SCREENSHOT' | 'INVOICE';
+export type BulkReimbursementAction = 'REIMBURSE' | 'UNREIMBURSE' | 'REJECT' | 'ARCHIVE';
 
 export interface ReimbursementInput {
   amount: number;
@@ -79,4 +80,8 @@ export function listAdminReimbursements(params: AdminReimbursementFilters = { st
 
 export function updateAdminRemark(id: number, adminRemark: string) {
   return http.patch<ReimbursementRecord>(`/admin/reimbursements/${id}/remark`, { adminRemark });
+}
+
+export function bulkUpdateReimbursements(ids: number[], action: BulkReimbursementAction) {
+  return http.post<ReimbursementRecord[]>('/admin/reimbursements/bulk-action', { ids, action });
 }

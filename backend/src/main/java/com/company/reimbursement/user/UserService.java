@@ -40,6 +40,15 @@ public class UserService {
                 .toList();
     }
 
+    @Transactional(readOnly = true)
+    public List<UserDtos.UserResponse> searchEmployees(String keyword) {
+        String cleaned = keyword == null ? "" : keyword.trim();
+        List<User> matched = cleaned.isEmpty()
+                ? users.findTop20ByRoleAndEnabledTrueOrderByDisplayNameAsc(UserRole.EMPLOYEE)
+                : users.findTop20ByRoleAndEnabledTrueAndDisplayNameContainingIgnoreCaseOrderByDisplayNameAsc(UserRole.EMPLOYEE, cleaned);
+        return matched.stream().map(UserDtos.UserResponse::from).toList();
+    }
+
     @Transactional
     public UserDtos.UserResponse update(Long id, UserDtos.UpdateUserRequest request) {
         User user = users.findById(id).orElseThrow(() -> new EntityNotFoundException("用户不存在"));

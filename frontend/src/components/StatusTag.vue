@@ -5,7 +5,7 @@ const props = defineProps<{ status: ReimbursementStatus }>();
 
 const labels: Record<ReimbursementStatus, string> = {
   DRAFT: '草稿',
-  SUBMITTED: '已提交',
+  SUBMITTED: '待报销',
   ARCHIVED: '已归档'
 };
 </script>

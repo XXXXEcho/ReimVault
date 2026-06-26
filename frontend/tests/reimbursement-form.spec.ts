@@ -90,7 +90,7 @@ describe('reimbursement form', () => {
       amount: 88,
       categoryId: 7,
       purpose: '客户拜访',
-      paymentTime: new Date('2026-05-21T10:00:00').toISOString()
+      paymentTime: '2026-05-21T02:00:00.000Z'
     });
     expect(http.post).toHaveBeenNthCalledWith(3, '/reimbursements/42/submit');
   });
@@ -116,13 +116,13 @@ describe('reimbursement form', () => {
     await wrapper.find('[aria-label="金额"]').setValue('99');
     await wrapper.find('[aria-label="用途说明"]').setValue('新用途');
     await wrapper.find('[data-test="submit-reimbursement"]').trigger('click');
-    await Promise.resolve();
+    await flushPromises();
 
     expect(http.patch).toHaveBeenCalledWith('/reimbursements/9', {
       amount: 99,
       categoryId: 7,
       purpose: '新用途',
-      paymentTime: new Date('2026-05-21T10:00:00').toISOString()
+      paymentTime: '2026-05-21T02:00:00.000Z'
     });
     expect(http.post).toHaveBeenCalledWith('/reimbursements/9/submit');
   });

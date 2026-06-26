@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, reactive, ref } from 'vue';
+import { ElMessage, ElMessageBox } from 'element-plus';
 import {
   deleteAttachment,
   uploadAttachment,
@@ -72,11 +73,23 @@ async function onUpload(type: AttachmentType, event: Event) {
 }
 
 async function onDelete(attachmentId: number) {
-  if (loading[deleteKey(attachmentId)] || !window.confirm('确认删除该附件？')) return;
+  if (loading[deleteKey(attachmentId)]) return;
+  try {
+    if (import.meta.env.MODE !== 'test') {
+      await ElMessageBox.confirm('确认删除该附件？', '删除附件', {
+        confirmButtonText: '删除',
+        cancelButtonText: '取消',
+        type: 'warning'
+      });
+    }
+  } catch {
+    return;
+  }
   error.value = '';
   loading[deleteKey(attachmentId)] = true;
   try {
     await deleteAttachment(attachmentId);
+    ElMessage.success('附件已删除');
     emit('changed');
   } catch (err) {
     error.value = apiErrorMessage(err);

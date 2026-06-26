@@ -14,6 +14,16 @@ public class ReimbursementDtos {
     public record AdminRemarkRequest(String adminRemark) {
     }
 
+    public enum BulkAction {
+        REIMBURSE,
+        UNREIMBURSE,
+        REJECT,
+        ARCHIVE
+    }
+
+    public record BulkActionRequest(List<Long> ids, BulkAction action) {
+    }
+
     public record EmployeeListFilter(Long categoryId, ReimbursementStatus status, LocalDate from, LocalDate to, String keyword) {
     }
 

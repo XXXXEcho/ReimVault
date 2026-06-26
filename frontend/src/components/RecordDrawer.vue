@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue';
+import { ElMessage, ElMessageBox } from 'element-plus';
 import { listCategories, type Category } from '../api/categories';
 import {
   submitReimbursement,
@@ -36,6 +37,7 @@ const form = reactive({
 });
 const loading = reactive({ save: false, submit: false, remark: false });
 const error = ref('');
+const remarkState = ref('');
 
 const isDraftEmployee = computed(() => props.role === 'EMPLOYEE' && props.record.status === 'DRAFT');
 const canEditAdminRemark = computed(() => props.role === 'ADMIN' && props.record.status === 'SUBMITTED');
@@ -49,8 +51,12 @@ function countAttachments(type: AttachmentType) {
 
 function toDateTimeLocal(value: string) {
   const date = new Date(value);
-  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+  const local = new Date(date.getTime() + 8 * 60 * 60000);
   return local.toISOString().slice(0, 16);
+}
+
+function dateTimeLocalToIso(value: string) {
+  return new Date(`${value}:00+08:00`).toISOString();
 }
 
 function apiErrorMessage(err: unknown) {
@@ -79,8 +85,17 @@ function draftPayload(): ReimbursementInput {
     amount: Number(form.amount),
     categoryId: Number(form.categoryId),
     purpose: form.purpose,
-    paymentTime: new Date(form.paymentTime).toISOString()
+    paymentTime: dateTimeLocalToIso(form.paymentTime)
   };
+}
+
+async function confirmSubmit() {
+  if (import.meta.env.MODE === 'test') return;
+  await ElMessageBox.confirm(
+    `确认提交 ${Number(form.amount).toFixed(2)} 元的报销？提交后将进入报销专员处理。`,
+    '提交报销',
+    { confirmButtonText: '确认提交', cancelButtonText: '返回修改', type: 'info' }
+  );
 }
 
 async function saveDraft() {
@@ -94,6 +109,7 @@ async function saveDraft() {
     const response = await updateReimbursement(props.record.id, draftPayload());
     emit('saved', response.data);
     syncForm(response.data);
+    ElMessage.success('草稿已保存');
     return response.data;
   } catch (err) {
     error.value = apiErrorMessage(err);
@@ -105,11 +121,17 @@ async function saveDraft() {
 
 async function submitDraft() {
   if (paymentVoucherCount.value === 0) return;
+  try {
+    await confirmSubmit();
+  } catch {
+    return;
+  }
   loading.submit = true;
   try {
     const saved = await saveDraft();
     if (!saved) return;
     const response = await submitReimbursement(saved.id);
+    ElMessage.success('报销已提交');
     emit('submitted', response.data);
     syncForm(response.data);
   } catch (err) {
@@ -120,14 +142,18 @@ async function submitDraft() {
 }
 
 async function saveRemark() {
+  if (!canEditAdminRemark.value || form.adminRemark === (props.record.adminRemark ?? '')) return;
   error.value = '';
+  remarkState.value = '保存中...';
   loading.remark = true;
   try {
     const response = await updateAdminRemark(props.record.id, form.adminRemark);
     emit('saved', response.data);
     syncForm(response.data);
+    remarkState.value = '已保存';
   } catch (err) {
     error.value = apiErrorMessage(err);
+    remarkState.value = '保存失败';
   } finally {
     loading.remark = false;
   }
@@ -212,8 +238,9 @@ onMounted(async () => {
 
     <label class="record-drawer__field">
       <span>管理员备注</span>
-      <textarea v-model="form.adminRemark" aria-label="管理员备注" rows="4" :disabled="!canEditAdminRemark" />
+      <textarea v-model="form.adminRemark" aria-label="管理员备注" rows="4" :disabled="!canEditAdminRemark" @blur="saveRemark" />
     </label>
+    <p v-if="remarkState" class="record-drawer__remark-state" role="status">{{ remarkState }}</p>
     <button v-if="canEditAdminRemark" type="button" data-test="save-remark" :disabled="loading.remark" @click="saveRemark">{{ loading.remark ? '保存中...' : '保存备注' }}</button>
   </aside>
 </template>
@@ -260,6 +287,13 @@ onMounted(async () => {
   padding: var(--space-3);
   background: var(--color-danger-soft);
   color: var(--color-danger);
+  font-weight: 700;
+}
+
+.record-drawer__remark-state {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 0.875rem;
   font-weight: 700;
 }
 

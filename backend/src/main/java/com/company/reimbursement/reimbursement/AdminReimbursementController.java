@@ -7,6 +7,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -14,7 +15,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/admin/reimbursements")
-@PreAuthorize("hasRole('ADMIN')")
+@PreAuthorize("hasAnyRole('ADMIN','SPECIALIST')")
 public class AdminReimbursementController {
     private final ReimbursementService service;
 
@@ -37,5 +38,10 @@ public class AdminReimbursementController {
     @PatchMapping("/{id}/remark")
     ReimbursementDtos.RecordResponse updateRemark(@PathVariable Long id, @RequestBody ReimbursementDtos.AdminRemarkRequest request) {
         return service.updateAdminRemark(id, request);
+    }
+
+    @PostMapping("/bulk-action")
+    List<ReimbursementDtos.RecordResponse> bulkAction(@RequestBody ReimbursementDtos.BulkActionRequest request) {
+        return service.bulkAction(request);
     }
 }

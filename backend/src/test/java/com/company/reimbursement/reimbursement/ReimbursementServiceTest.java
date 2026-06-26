@@ -133,4 +133,36 @@ class ReimbursementServiceTest {
 
         assertThat(updated.adminRemark()).isEqualTo("缺少订单截图");
     }
+
+    @Test
+    void bulkActionRejectsDraftAndArchivedRecordsForInvalidTransitions() {
+        ReimbursementRecord draft = records.save(ReimbursementRecord.createDraft(employee, new BigDecimal("128.00"), category, "购买键盘", Instant.parse("2026-05-01T10:00:00Z")));
+        ReimbursementRecord archived = ReimbursementRecord.createDraft(employee, new BigDecimal("168.00"), category, "购买鼠标", Instant.parse("2026-05-02T10:00:00Z"));
+        archived.submit(1);
+        archived.archive();
+        archived = records.save(archived);
+
+        ReimbursementRecord finalArchived = archived;
+        assertThatThrownBy(() -> service.bulkAction(new ReimbursementDtos.BulkActionRequest(
+                java.util.List.of(draft.getId()), ReimbursementDtos.BulkAction.REIMBURSE)))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("只能归档已提交记录");
+
+        assertThatThrownBy(() -> service.bulkAction(new ReimbursementDtos.BulkActionRequest(
+                java.util.List.of(finalArchived.getId()), ReimbursementDtos.BulkAction.REJECT)))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("只能打回待报销记录");
+    }
+
+    @Test
+    void bulkActionCanRejectSubmittedRecordsBackToDraft() {
+        ReimbursementRecord submitted = ReimbursementRecord.createDraft(employee, new BigDecimal("128.00"), category, "购买键盘", Instant.parse("2026-05-01T10:00:00Z"));
+        submitted.submit(1);
+        submitted = records.save(submitted);
+
+        assertThat(service.bulkAction(new ReimbursementDtos.BulkActionRequest(
+                java.util.List.of(submitted.getId()), ReimbursementDtos.BulkAction.REJECT)))
+                .extracting(ReimbursementDtos.RecordResponse::status)
+                .containsExactly(ReimbursementStatus.DRAFT);
+    }
 }

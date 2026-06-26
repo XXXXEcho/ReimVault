@@ -103,4 +103,15 @@ class BatchServiceTest {
         assertThat(archived.archivedAt()).isNotNull();
         assertThat(records.findById(submitted.getId()).orElseThrow().getStatus()).isEqualTo(ReimbursementStatus.ARCHIVED);
     }
+
+    @Test
+    void addItemsSkipsDuplicateRecordsAndReturnsBatchDetails() {
+        BatchDtos.BatchResponse batch = service.create(admin.getUsername(), new BatchDtos.CreateBatchRequest("2026-05报销", "五月报销"));
+        service.addItem(batch.id(), submitted.getId());
+
+        BatchDtos.BatchResponse withItems = service.addItems(batch.id(), java.util.List.of(submitted.getId()));
+
+        assertThat(withItems.items()).hasSize(1);
+        assertThat(withItems.items().getFirst().recordId()).isEqualTo(submitted.getId());
+    }
 }

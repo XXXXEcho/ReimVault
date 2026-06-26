@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/admin/batches")
-@PreAuthorize("hasRole('ADMIN')")
+@PreAuthorize("hasAnyRole('ADMIN','SPECIALIST')")
 public class ExportController {
     private final ExcelExportService excelExportService;
     private final ZipExportService zipExportService;
