@@ -236,10 +236,11 @@ onMounted(async () => {
       @changed="emit('saved', props.record)"
     />
 
-    <label class="record-drawer__field">
+    <div class="record-drawer__field">
       <span>管理员备注</span>
-      <textarea v-model="form.adminRemark" aria-label="管理员备注" rows="4" :disabled="!canEditAdminRemark" @blur="saveRemark" />
-    </label>
+      <textarea v-if="canEditAdminRemark" v-model="form.adminRemark" aria-label="管理员备注" rows="4" @blur="saveRemark" />
+      <p v-else class="record-drawer__readonly-remark" data-test="admin-remark-readonly">{{ props.record.adminRemark || '—' }}</p>
+    </div>
     <p v-if="remarkState" class="record-drawer__remark-state" role="status">{{ remarkState }}</p>
     <button v-if="canEditAdminRemark" type="button" data-test="save-remark" :disabled="loading.remark" @click="saveRemark">{{ loading.remark ? '保存中...' : '保存备注' }}</button>
   </aside>
@@ -295,6 +296,20 @@ onMounted(async () => {
   color: var(--color-text-muted);
   font-size: 0.875rem;
   font-weight: 700;
+}
+
+.record-drawer__readonly-remark {
+  margin: 0;
+  min-height: 44px;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-muted);
+  color: var(--color-text);
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 .record-drawer__form,
