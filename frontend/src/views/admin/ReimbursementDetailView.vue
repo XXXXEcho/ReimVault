@@ -131,7 +131,7 @@ dd { margin: 0; color: #1f2937; font-size: 13px; }
 .large-preview-panel { display: flex; flex-direction: column; gap: 12px; width: min(1280px, 94vw); max-height: calc(100vh - 32px); padding: 16px; border-radius: 18px; background: #fff; overflow: hidden; }
 .large-preview-header { display: flex; flex: 0 0 auto; align-items: center; justify-content: space-between; gap: 16px; }
 .large-preview-header button { min-height: 36px; padding: 0 12px; border: 0; border-radius: 8px; background: #0f172a; color: #fff; cursor: pointer; }
-.large-preview-panel > img { flex: 1 1 auto; min-height: 0; width: auto; max-width: 100%; object-fit: contain; border-radius: 12px; }
+.large-preview-panel > img { flex: 1 1 auto; min-height: 0; width: 100%; height: 100%; object-fit: contain; border-radius: 12px; }
 .large-preview-panel > a { flex: 0 0 auto; color: #2563eb; font-weight: 700; }
 .large-preview-panel > a { color: #2563eb; font-weight: 700; }
 @media (max-width: 760px) { .preview-list { column-count: 1; } }
