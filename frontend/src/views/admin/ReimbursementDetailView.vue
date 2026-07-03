@@ -127,11 +127,12 @@ dd { margin: 0; color: #1f2937; font-size: 13px; }
 .image-preview-button img { width: 100%; max-height: 220px; object-fit: contain; border-radius: 8px; background: #fff; }
 .file-link { color: #2563eb; font-size: 13px; font-weight: 600; text-decoration: none; }
 .empty { color: #94a3b8; font-size: 13px; margin: 0 0 16px; }
-.large-preview { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; padding: 24px; background: rgba(15, 23, 42, 0.72); }
-.large-preview-panel { display: grid; gap: 14px; width: min(1280px, 94vw); max-height: 94vh; padding: 18px; border-radius: 18px; background: #fff; }
-.large-preview-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.large-preview { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; padding: 16px; background: rgba(15, 23, 42, 0.72); }
+.large-preview-panel { display: flex; flex-direction: column; gap: 12px; width: min(1280px, 94vw); max-height: calc(100vh - 32px); padding: 16px; border-radius: 18px; background: #fff; overflow: hidden; }
+.large-preview-header { display: flex; flex: 0 0 auto; align-items: center; justify-content: space-between; gap: 16px; }
 .large-preview-header button { min-height: 36px; padding: 0 12px; border: 0; border-radius: 8px; background: #0f172a; color: #fff; cursor: pointer; }
-.large-preview-panel > img { justify-self: center; max-width: 100%; max-height: 88vh; object-fit: contain; border-radius: 12px; }
+.large-preview-panel > img { flex: 1 1 auto; min-height: 0; width: auto; max-width: 100%; object-fit: contain; border-radius: 12px; }
+.large-preview-panel > a { flex: 0 0 auto; color: #2563eb; font-weight: 700; }
 .large-preview-panel > a { color: #2563eb; font-weight: 700; }
 @media (max-width: 760px) { .preview-list { column-count: 1; } }
 </style>

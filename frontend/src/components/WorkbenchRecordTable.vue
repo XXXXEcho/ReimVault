@@ -70,6 +70,7 @@ function toggleAll(checked: boolean) {
           <th>状态</th>
           <th v-if="props.admin">报销时间</th>
           <th v-if="props.admin">批次</th>
+          <th v-if="props.admin" class="workbench-table__remark-col">管理员备注</th>
           <th>材料</th>
         </tr>
       </thead>
@@ -101,6 +102,7 @@ function toggleAll(checked: boolean) {
           <td><StatusTag :status="record.status" :reimbursed-at="record.reimbursedAt" /></td>
           <td v-if="props.admin">{{ formatTime(record.reimbursedAt) }}</td>
           <td v-if="props.admin">{{ record.batchName || '-' }}</td>
+          <td v-if="props.admin" class="workbench-table__remark" :title="record.adminRemark || ''">{{ record.adminRemark || '—' }}</td>
           <td>
             <MaterialCompleteness
               :payment-voucher-count="attachmentCount(record, 'PAYMENT_VOUCHER')"
@@ -152,5 +154,21 @@ function toggleAll(checked: boolean) {
 .workbench-table__select input {
   width: 18px;
   height: 18px;
+}
+
+.workbench-table__remark-col {
+  min-width: 160px;
+}
+
+.workbench-table__remark {
+  max-width: 240px;
+  color: var(--color-text-muted);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
 }
 </style>
