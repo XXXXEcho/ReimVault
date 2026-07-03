@@ -44,7 +44,7 @@ describe('auth flow', () => {
 
     expect(wrapper.find('[aria-label="用户名"]').exists()).toBe(true);
     expect(wrapper.find('[aria-label="密码"]').exists()).toBe(true);
-    expect(wrapper.find('button[type="submit"]').classes()).toContain('primary-action');
+    expect(wrapper.find('button[type="submit"]').classes()).toContain('primary-btn');
 
     await wrapper.find('[aria-label="用户名"]').setValue('admin');
     await wrapper.find('[aria-label="密码"]').setValue('secret');

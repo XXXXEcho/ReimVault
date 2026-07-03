@@ -37,7 +37,7 @@ describe('RecordDrawer', () => {
     await flushPromises();
 
     expect(wrapper.find('[aria-label="金额"]').attributes('disabled')).toBeDefined();
-    expect(wrapper.text()).not.toContain('提交');
+    expect(wrapper.find('[data-test="submit-draft"]').exists()).toBe(false);
   });
 
   it('allows admin to save remark for submitted record', async () => {

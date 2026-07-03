@@ -67,49 +67,64 @@ onMounted(load);
 </script>
 
 <template>
-  <section>
-    <h1>经费编码</h1>
+  <section class="page">
+    <header class="page__head">
+      <div>
+        <p class="eyebrow">基础数据</p>
+        <h1>经费编码</h1>
+        <p class="page__desc">维护可用于报销关联的 OA 经费编码。</p>
+      </div>
+    </header>
+
     <p v-if="notice" :class="['notice', notice.type]" :role="notice.type === 'error' ? 'alert' : 'status'">{{ notice.text }}</p>
-    <form class="inline-form" @submit.prevent="add">
-      <input aria-label="OA编号" v-model="newNumber" placeholder="输入新经费编码" />
-      <button type="submit">新增</button>
+
+    <form class="enterprise-card form-card" @submit.prevent="add">
+      <input class="field-input" aria-label="OA编号" v-model="newNumber" placeholder="输入新经费编码，如 30280501" />
+      <button type="submit" class="primary-btn">新增经费编码</button>
     </form>
-    <table>
-      <thead><tr><th>ID</th><th>经费编码</th><th>操作</th></tr></thead>
-      <tbody>
-        <tr v-for="item in items" :key="item.id">
-          <td>{{ item.id }}</td>
-          <td>
-            <template v-if="editingId === item.id">
-              <input class="edit-input" v-model="editing[item.id]" @keyup.enter="saveEdit(item.id)" />
-            </template>
-            <template v-else>{{ item.number }}</template>
-          </td>
-          <td class="row-actions">
-            <template v-if="editingId === item.id">
-              <button @click="saveEdit(item.id)">保存</button>
-              <button @click="editingId = null">取消</button>
-            </template>
-            <template v-else>
-              <button @click="startEdit(item)">编辑</button>
-              <button class="btn-danger" @click="remove(item.id)">删除</button>
-            </template>
-          </td>
-        </tr>
-        <tr v-if="!items.length"><td colspan="3" class="empty">暂无经费编码</td></tr>
-      </tbody>
-    </table>
+
+    <div class="enterprise-card table-card">
+      <table class="data-table">
+        <thead><tr><th>经费编码</th><th class="col-actions">操作</th></tr></thead>
+        <tbody>
+          <tr v-for="item in items" :key="item.id">
+            <td>
+              <template v-if="editingId === item.id">
+                <input class="field-input edit-input" v-model="editing[item.id]" @keyup.enter="saveEdit(item.id)" />
+              </template>
+              <template v-else>{{ item.number }}</template>
+            </td>
+            <td class="row-actions">
+              <template v-if="editingId === item.id">
+                <button class="primary-btn" @click="saveEdit(item.id)">保存</button>
+                <button class="ghost-btn" @click="editingId = null">取消</button>
+              </template>
+              <template v-else>
+                <button class="ghost-btn" @click="startEdit(item)">编辑</button>
+                <button class="danger-btn" @click="remove(item.id)">删除</button>
+              </template>
+            </td>
+          </tr>
+          <tr v-if="!items.length"><td colspan="2" class="empty">暂无经费编码</td></tr>
+        </tbody>
+      </table>
+    </div>
   </section>
 </template>
 
 <style scoped>
-.inline-form { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 18px; }
-.notice { margin: 0 0 14px; padding: 10px 14px; border-radius: 10px; font-size: 13px; font-weight: 700; }
-.notice.success { background: #dcfce7; color: #166534; }
-.notice.error { background: #fee2e2; color: #991b1b; }
-.edit-input { min-width: 160px; }
-.row-actions { display: flex; gap: 6px; align-items: center; }
-.btn-danger { min-height: 34px; padding: 0 12px; border: 1px solid #fca5a5; border-radius: 8px; background: #fff; color: #dc2626; font-size: 12px; font-weight: 700; cursor: pointer; transition: background 160ms ease, color 160ms ease; }
-.btn-danger:hover { background: #dc2626; color: #fff; }
-.empty { text-align: center; color: #94a3b8; padding: 32px 12px !important; }
+.page { display: grid; gap: var(--space-5); }
+.page__head h1 { margin: 0; font-size: 1.5rem; }
+.page__desc { margin: 6px 0 0; color: var(--color-text-muted); font-size: 0.875rem; }
+.eyebrow { margin: 0 0 4px; color: var(--color-text-subtle); font-size: 0.8rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
+.notice { margin: 0; padding: var(--space-3) var(--space-4); border-radius: var(--radius-md); font-weight: 700; }
+.notice.success { background: var(--color-success-soft); color: #166534; }
+.notice.error { background: var(--color-danger-soft); color: #991b1b; }
+.form-card { display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: center; padding: var(--space-4) var(--space-5); }
+.form-card .field-input { flex: 1; min-width: 220px; }
+.table-card { padding: var(--space-2); overflow-x: auto; }
+.col-actions { width: 1%; white-space: nowrap; }
+.row-actions { display: flex; gap: var(--space-2); justify-content: flex-end; }
+.edit-input { min-width: 220px; }
+.empty { text-align: center; color: var(--color-text-subtle); padding: var(--space-10) !important; }
 </style>

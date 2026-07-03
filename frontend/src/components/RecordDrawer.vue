@@ -3,6 +3,7 @@ import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { listCategories, type Category } from '../api/categories';
 import {
+  formatTime,
   submitReimbursement,
   updateAdminRemark,
   updateReimbursement,
@@ -188,6 +189,25 @@ onMounted(async () => {
       <StatusTag v-if="props.role === 'ADMIN' || props.record.status !== 'SUBMITTED'" :status="props.record.status" />
     </header>
 
+    <dl class="record-drawer__meta" data-test="record-meta">
+      <div>
+        <dt>员工</dt>
+        <dd>{{ props.record.employeeName }}</dd>
+      </div>
+      <div>
+        <dt>经费编码</dt>
+        <dd>{{ props.record.oaNumber || '—' }}</dd>
+      </div>
+      <div>
+        <dt>提交时间</dt>
+        <dd>{{ formatTime(props.record.submittedAt) }}</dd>
+      </div>
+      <div>
+        <dt>报销时间</dt>
+        <dd>{{ formatTime(props.record.reimbursedAt) }}</dd>
+      </div>
+    </dl>
+
     <MaterialCompleteness
       :payment-voucher-count="paymentVoucherCount"
       :order-screenshot-count="orderScreenshotCount"
@@ -252,7 +272,7 @@ onMounted(async () => {
   top: 0;
   right: 0;
   z-index: 20;
-  width: min(460px, 100vw);
+  width: min(620px, 100vw);
   height: 100vh;
   overflow-y: auto;
   display: grid;
@@ -281,6 +301,37 @@ onMounted(async () => {
   color: var(--color-text-muted);
   font-size: 0.875rem;
   font-weight: 700;
+}
+
+.record-drawer__meta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2) var(--space-5);
+  margin: 0;
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-muted);
+}
+
+.record-drawer__meta div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.record-drawer__meta dt {
+  color: var(--color-text-subtle);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.record-drawer__meta dd {
+  margin: 0;
+  color: var(--color-text);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  word-break: break-word;
 }
 
 .record-drawer__error {

@@ -58,35 +58,76 @@ onMounted(load);
 </script>
 
 <template>
-  <section>
-    <div class="page-header">
-      <h1>分类管理</h1>
-      <button data-test="new-category" type="button" @click="resetForm">新增分类</button>
-    </div>
+  <section class="page">
+    <header class="page__head">
+      <div>
+        <p class="eyebrow">基础数据</p>
+        <h1>分类管理</h1>
+        <p class="page__desc">维护员工报销时可选的用途分类。</p>
+      </div>
+      <button class="ghost-btn" data-test="new-category" type="button" @click="resetForm">新增分类</button>
+    </header>
+
     <p v-if="notice" :class="['notice', notice.type]" :role="notice.type === 'error' ? 'alert' : 'status'">{{ notice.text }}</p>
-    <form class="inline-form" @submit.prevent="save">
-      <input aria-label="分类名称" v-model="form.name" placeholder="分类名称" />
-      <input aria-label="排序" v-model="form.sortOrder" type="number" placeholder="排序" />
-      <input aria-label="备注" v-model="form.remark" placeholder="备注" />
-      <label class="checkbox-label"><input aria-label="启用" type="checkbox" v-model="form.enabled" />启用</label>
-      <button data-test="create-category" type="button" @click="save">保存分类</button>
+
+    <form class="enterprise-card form-card" @submit.prevent="save">
+      <div class="field">
+        <label>分类名称</label>
+        <input class="field-input" aria-label="分类名称" v-model="form.name" placeholder="如：差旅费" />
+      </div>
+      <div class="field field--narrow">
+        <label>排序</label>
+        <input class="field-input" aria-label="排序" v-model="form.sortOrder" type="number" placeholder="排序" />
+      </div>
+      <div class="field">
+        <label>备注</label>
+        <input class="field-input" aria-label="备注" v-model="form.remark" placeholder="备注（选填）" />
+      </div>
+      <label class="checkbox-label">
+        <input aria-label="启用" type="checkbox" v-model="form.enabled" />
+        <span>启用</span>
+      </label>
+      <button class="primary-btn" data-test="create-category" type="button" @click="save">{{ editingId ? '更新分类' : '保存分类' }}</button>
     </form>
-    <table>
-      <thead><tr><th>名称</th><th>启用</th><th>排序</th><th>备注</th><th>操作</th></tr></thead>
-      <tbody><tr v-for="category in categories" :key="category.id"><td>{{ category.name }}</td><td>{{ category.enabled ? '是' : '否' }}</td><td>{{ category.sortOrder }}</td><td>{{ category.remark }}</td><td class="row-actions"><button @click="edit(category)">编辑</button><button class="btn-danger" @click="remove(category.id)">删除</button></td></tr></tbody>
-    </table>
+
+    <div class="enterprise-card table-card">
+      <table class="data-table">
+        <thead><tr><th>名称</th><th class="col-state">启用</th><th class="col-sort">排序</th><th>备注</th><th class="col-actions">操作</th></tr></thead>
+        <tbody>
+          <tr v-for="category in categories" :key="category.id">
+            <td>{{ category.name }}</td>
+            <td><span :class="['tag', category.enabled ? 'tag--success' : 'tag--muted']">{{ category.enabled ? '启用' : '停用' }}</span></td>
+            <td>{{ category.sortOrder }}</td>
+            <td>{{ category.remark || '—' }}</td>
+            <td class="row-actions">
+              <button class="ghost-btn" @click="edit(category)">编辑</button>
+              <button class="danger-btn" @click="remove(category.id)">删除</button>
+            </td>
+          </tr>
+          <tr v-if="!categories.length"><td colspan="5" class="empty">暂无分类</td></tr>
+        </tbody>
+      </table>
+    </div>
   </section>
 </template>
 
 <style scoped>
-.page-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
-.page-header h1 { margin: 0; }
-.inline-form { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 18px; }
-.checkbox-label { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: #475569; cursor: pointer; }
-.notice { margin: 0 0 14px; padding: 10px 14px; border-radius: 10px; font-size: 13px; font-weight: 700; }
-.notice.success { background: #dcfce7; color: #166534; }
-.notice.error { background: #fee2e2; color: #991b1b; }
-.row-actions { display: flex; gap: 6px; align-items: center; }
-.btn-danger { min-height: 34px; padding: 0 12px; border: 1px solid #fca5a5; border-radius: 8px; background: #fff; color: #dc2626; font-size: 12px; font-weight: 700; cursor: pointer; transition: background 160ms ease, color 160ms ease; }
-.btn-danger:hover { background: #dc2626; color: #fff; }
+.page { display: grid; gap: var(--space-5); }
+.page__head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-4); }
+.page__head h1 { margin: 0; font-size: 1.5rem; }
+.page__desc { margin: 6px 0 0; color: var(--color-text-muted); font-size: 0.875rem; }
+.eyebrow { margin: 0 0 4px; color: var(--color-text-subtle); font-size: 0.8rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
+.notice { margin: 0; padding: var(--space-3) var(--space-4); border-radius: var(--radius-md); font-weight: 700; }
+.notice.success { background: var(--color-success-soft); color: #166534; }
+.notice.error { background: var(--color-danger-soft); color: #991b1b; }
+.form-card { display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: flex-end; padding: var(--space-4) var(--space-5); }
+.field { display: grid; gap: 6px; flex: 1; min-width: 180px; }
+.field--narrow { max-width: 120px; }
+.field label { color: var(--color-text-muted); font-size: 0.8125rem; font-weight: 700; }
+.checkbox-label { display: inline-flex; align-items: center; gap: 8px; min-height: 40px; color: var(--color-text); font-weight: 700; cursor: pointer; }
+.table-card { padding: var(--space-2); overflow-x: auto; }
+.col-state, .col-sort { width: 1%; white-space: nowrap; }
+.col-actions { width: 1%; white-space: nowrap; }
+.row-actions { display: flex; gap: var(--space-2); justify-content: flex-end; }
+.empty { text-align: center; color: var(--color-text-subtle); padding: var(--space-10) !important; }
 </style>

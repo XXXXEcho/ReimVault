@@ -8,6 +8,17 @@ const editingId = ref<number | null>(null);
 const notice = ref<{ type: 'success' | 'error'; text: string } | null>(null);
 const form = reactive({ username: '', displayName: '', department: '', password: '', role: 'EMPLOYEE' as Role, enabled: true });
 
+const ROLE_LABEL: Record<Role, string> = { EMPLOYEE: '员工', SPECIALIST: '报销专员', ADMIN: '管理员' };
+const ROLE_TAG: Record<Role, string> = { ADMIN: 'tag--info', SPECIALIST: 'tag--warning', EMPLOYEE: 'tag--muted' };
+
+function roleLabel(role: Role) {
+  return ROLE_LABEL[role] ?? role;
+}
+
+function roleTagClass(role: Role) {
+  return ROLE_TAG[role] ?? 'tag--muted';
+}
+
 function resetForm() {
   editingId.value = null;
   Object.assign(form, {
@@ -69,37 +80,88 @@ onMounted(load);
 </script>
 
 <template>
-  <section>
-    <div class="page-header">
-      <h1>用户管理</h1>
-      <button data-test="new-user" type="button" @click="resetForm">新增用户</button>
-    </div>
+  <section class="page">
+    <header class="page__head">
+      <div>
+        <p class="eyebrow">系统管理</p>
+        <h1>用户管理</h1>
+        <p class="page__desc">维护员工、报销专员和管理员账号。</p>
+      </div>
+      <button class="ghost-btn" data-test="new-user" type="button" @click="resetForm">新增用户</button>
+    </header>
+
     <p v-if="notice" :class="['notice', notice.type]" :role="notice.type === 'error' ? 'alert' : 'status'">{{ notice.text }}</p>
-    <form class="inline-form" @submit.prevent="save">
-      <input aria-label="用户名" v-model="form.username" placeholder="用户名" />
-      <input aria-label="姓名" v-model="form.displayName" placeholder="姓名" />
-      <input aria-label="部门" v-model="form.department" placeholder="部门" />
-      <input aria-label="密码" v-model="form.password" placeholder="密码" type="password" />
-      <select aria-label="角色" v-model="form.role"><option value="EMPLOYEE">员工</option><option value="SPECIALIST">报销专员</option><option value="ADMIN">管理员</option></select>
-      <label class="checkbox-label"><input aria-label="启用" type="checkbox" v-model="form.enabled" />启用</label>
-      <button data-test="create-user" type="button" @click="save">保存用户</button>
+
+    <form class="enterprise-card form-card" @submit.prevent="save">
+      <div class="field">
+        <label>用户名</label>
+        <input class="field-input" aria-label="用户名" v-model="form.username" placeholder="登录用户名" />
+      </div>
+      <div class="field">
+        <label>姓名</label>
+        <input class="field-input" aria-label="姓名" v-model="form.displayName" placeholder="显示姓名" />
+      </div>
+      <div class="field">
+        <label>部门</label>
+        <input class="field-input" aria-label="部门" v-model="form.department" placeholder="所在部门" />
+      </div>
+      <div class="field">
+        <label>{{ editingId ? '新密码（留空不改）' : '密码' }}</label>
+        <input class="field-input" aria-label="密码" v-model="form.password" type="password" placeholder="登录密码" />
+      </div>
+      <div class="field field--narrow">
+        <label>角色</label>
+        <select class="field-input" aria-label="角色" v-model="form.role">
+          <option value="EMPLOYEE">员工</option>
+          <option value="SPECIALIST">报销专员</option>
+          <option value="ADMIN">管理员</option>
+        </select>
+      </div>
+      <label class="checkbox-label">
+        <input aria-label="启用" type="checkbox" v-model="form.enabled" />
+        <span>启用</span>
+      </label>
+      <button class="primary-btn" data-test="create-user" type="button" @click="save">{{ editingId ? '更新用户' : '保存用户' }}</button>
     </form>
-    <table>
-      <thead><tr><th>用户名</th><th>姓名</th><th>部门</th><th>角色</th><th>启用</th><th>操作</th></tr></thead>
-      <tbody><tr v-for="user in users" :key="user.id"><td>{{ user.username }}</td><td>{{ user.displayName }}</td><td>{{ user.department }}</td><td>{{ { EMPLOYEE: '员工', SPECIALIST: '报销专员', ADMIN: '管理员' }[user.role] ?? user.role }}</td><td>{{ user.enabled ? '是' : '否' }}</td><td class="row-actions"><button @click="edit(user)">编辑</button><button class="btn-danger" @click="remove(user.id)">删除</button></td></tr></tbody>
-    </table>
+
+    <div class="enterprise-card table-card">
+      <table class="data-table">
+        <thead><tr><th>用户名</th><th>姓名</th><th>部门</th><th>角色</th><th class="col-state">启用</th><th class="col-actions">操作</th></tr></thead>
+        <tbody>
+          <tr v-for="user in users" :key="user.id">
+            <td>{{ user.username }}</td>
+            <td>{{ user.displayName }}</td>
+            <td>{{ user.department }}</td>
+            <td><span :class="['tag', roleTagClass(user.role)]">{{ roleLabel(user.role) }}</span></td>
+            <td><span :class="['tag', user.enabled ? 'tag--success' : 'tag--muted']">{{ user.enabled ? '启用' : '停用' }}</span></td>
+            <td class="row-actions">
+              <button class="ghost-btn" @click="edit(user)">编辑</button>
+              <button class="danger-btn" @click="remove(user.id)">删除</button>
+            </td>
+          </tr>
+          <tr v-if="!users.length"><td colspan="6" class="empty">暂无用户</td></tr>
+        </tbody>
+      </table>
+    </div>
   </section>
 </template>
 
 <style scoped>
-.page-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
-.page-header h1 { margin: 0; }
-.inline-form { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 18px; }
-.checkbox-label { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: #475569; cursor: pointer; }
-.notice { margin: 0 0 14px; padding: 10px 14px; border-radius: 10px; font-size: 13px; font-weight: 700; }
-.notice.success { background: #dcfce7; color: #166534; }
-.notice.error { background: #fee2e2; color: #991b1b; }
-.row-actions { display: flex; gap: 6px; align-items: center; }
-.btn-danger { min-height: 34px; padding: 0 12px; border: 1px solid #fca5a5; border-radius: 8px; background: #fff; color: #dc2626; font-size: 12px; font-weight: 700; cursor: pointer; transition: background 160ms ease, color 160ms ease; }
-.btn-danger:hover { background: #dc2626; color: #fff; }
+.page { display: grid; gap: var(--space-5); }
+.page__head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-4); }
+.page__head h1 { margin: 0; font-size: 1.5rem; }
+.page__desc { margin: 6px 0 0; color: var(--color-text-muted); font-size: 0.875rem; }
+.eyebrow { margin: 0 0 4px; color: var(--color-text-subtle); font-size: 0.8rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
+.notice { margin: 0; padding: var(--space-3) var(--space-4); border-radius: var(--radius-md); font-weight: 700; }
+.notice.success { background: var(--color-success-soft); color: #166534; }
+.notice.error { background: var(--color-danger-soft); color: #991b1b; }
+.form-card { display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: flex-end; padding: var(--space-4) var(--space-5); }
+.field { display: grid; gap: 6px; flex: 1; min-width: 160px; }
+.field--narrow { max-width: 140px; }
+.field label { color: var(--color-text-muted); font-size: 0.8125rem; font-weight: 700; }
+.checkbox-label { display: inline-flex; align-items: center; gap: 8px; min-height: 40px; color: var(--color-text); font-weight: 700; cursor: pointer; }
+.table-card { padding: var(--space-2); overflow-x: auto; }
+.col-state, .col-actions { width: 1%; white-space: nowrap; }
+.row-actions { display: flex; gap: var(--space-2); justify-content: flex-end; }
+.empty { text-align: center; color: var(--color-text-subtle); padding: var(--space-10) !important; }
 </style>
