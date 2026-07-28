@@ -2,11 +2,14 @@
 import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { listCategories, type Category } from '../api/categories';
+import { listOaNumbers, type OaNumber } from '../api/oa';
 import {
   formatTime,
   submitReimbursement,
   updateAdminRemark,
+  updateOaNumber,
   updateReimbursement,
+  withdrawReimbursement,
   type AttachmentType,
   type ReimbursementInput,
   type ReimbursementRecord
@@ -17,7 +20,7 @@ import StatusTag from './StatusTag.vue';
 
 const props = defineProps<{
   record: ReimbursementRecord;
-  role: 'EMPLOYEE' | 'ADMIN';
+  role: 'EMPLOYEE' | 'SPECIALIST' | 'ADMIN';
 }>();
 
 const emit = defineEmits<{
@@ -39,9 +42,15 @@ const form = reactive({
 const loading = reactive({ save: false, submit: false, remark: false });
 const error = ref('');
 const remarkState = ref('');
+const oaNumbers = ref<OaNumber[]>([]);
+const selectedOaId = ref<number | null>(null);
+const oaLoading = ref(false);
 
+const isManagement = computed(() => props.role === 'ADMIN' || props.role === 'SPECIALIST');
 const isDraftEmployee = computed(() => props.role === 'EMPLOYEE' && props.record.status === 'DRAFT');
-const canEditAdminRemark = computed(() => props.role === 'ADMIN' && props.record.status === 'SUBMITTED');
+const canEditAdminRemark = computed(() => isManagement.value && props.record.status === 'SUBMITTED');
+const canEditOa = computed(() => isManagement.value && props.record.status === 'SUBMITTED');
+const canWithdraw = computed(() => props.role === 'EMPLOYEE' && props.record.status === 'SUBMITTED');
 const paymentVoucherCount = computed(() => countAttachments('PAYMENT_VOUCHER'));
 const orderScreenshotCount = computed(() => countAttachments('ORDER_SCREENSHOT'));
 const invoiceCount = computed(() => countAttachments('INVOICE'));
@@ -160,6 +169,40 @@ async function saveRemark() {
   }
 }
 
+async function withdraw() {
+  try {
+    await ElMessageBox.confirm('确认撤回此报销？记录将退回草稿，可重新修改后提交。', '撤回报销', {
+      confirmButtonText: '确认撤回',
+      cancelButtonText: '取消',
+      type: 'warning'
+    });
+  } catch { return; }
+  error.value = '';
+  try {
+    const response = await withdrawReimbursement(props.record.id);
+    ElMessage.success('已撤回，可重新编辑');
+    emit('submitted', response.data);
+    syncForm(response.data);
+  } catch (err) {
+    error.value = apiErrorMessage(err);
+  }
+}
+
+async function saveOa() {
+  error.value = '';
+  oaLoading.value = true;
+  try {
+    const response = await updateOaNumber(props.record.id, selectedOaId.value);
+    ElMessage.success('经费编码已更新');
+    emit('saved', response.data);
+    syncForm(response.data);
+  } catch (err) {
+    error.value = apiErrorMessage(err);
+  } finally {
+    oaLoading.value = false;
+  }
+}
+
 function onKeydown(event: KeyboardEvent) {
   if (event.key === 'Escape') emit('close');
 }
@@ -172,6 +215,12 @@ onMounted(async () => {
   if (isDraftEmployee.value) {
     const response = await listCategories();
     categories.items = response.data;
+  }
+  if (isManagement.value) {
+    const [oaResponse, catResponse] = await Promise.all([listOaNumbers(), listCategories()]);
+    oaNumbers.value = oaResponse.data;
+    selectedOaId.value = props.record.oaId ?? null;
+    if (!isDraftEmployee.value) categories.items = catResponse.data;
   }
 });
 </script>
@@ -186,7 +235,7 @@ onMounted(async () => {
         <p class="record-drawer__eyebrow">记录详情</p>
         <h2>{{ props.record.purpose }}</h2>
       </div>
-      <StatusTag v-if="props.role === 'ADMIN' || props.record.status !== 'SUBMITTED'" :status="props.record.status" />
+      <StatusTag v-if="isManagement || props.record.status !== 'SUBMITTED'" :status="props.record.status" />
     </header>
 
     <dl class="record-drawer__meta" data-test="record-meta">
@@ -248,6 +297,10 @@ onMounted(async () => {
       </div>
     </form>
 
+    <div v-if="canWithdraw" class="record-drawer__actions record-drawer__withdraw">
+      <button type="button" class="ghost-btn" @click="withdraw">撤回修改</button>
+    </div>
+
     <MaterialList
       :record-id="props.record.id"
       :status="props.record.status"
@@ -255,6 +308,17 @@ onMounted(async () => {
       @preview="emit('preview', $event)"
       @changed="emit('saved', props.record)"
     />
+
+    <div v-if="canEditOa" class="record-drawer__field">
+      <span>经费编码</span>
+      <div class="record-drawer__oa-row">
+        <select v-model="selectedOaId" aria-label="经费编码" class="field-input">
+          <option :value="null">未选择</option>
+          <option v-for="oa in oaNumbers" :key="oa.id" :value="oa.id">{{ oa.number }}</option>
+        </select>
+        <button class="primary-btn" style="flex:none" :disabled="oaLoading" @click="saveOa">保存</button>
+      </div>
+    </div>
 
     <div class="record-drawer__field">
       <span>管理员备注</span>
@@ -347,6 +411,16 @@ onMounted(async () => {
   color: var(--color-text-muted);
   font-size: 0.875rem;
   font-weight: 700;
+}
+
+.record-drawer__oa-row {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.record-drawer__withdraw {
+  padding-top: 0;
 }
 
 .record-drawer__readonly-remark {

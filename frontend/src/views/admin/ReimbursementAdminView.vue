@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
+import { useAuthStore } from '../../stores/auth';
 import EmptyState from '../../components/EmptyState.vue';
 import MaterialPreviewer from '../../components/MaterialPreviewer.vue';
 import MetricCard from '../../components/MetricCard.vue';
@@ -16,6 +17,7 @@ import {
   type ReimbursementStatus
 } from '../../api/reimbursements';
 
+const auth = useAuthStore();
 const records = ref<ReimbursementRecord[]>([]);
 const selected = ref<ReimbursementRecord | null>(null);
 const selectedIds = ref<number[]>([]);
@@ -157,7 +159,7 @@ onMounted(load);
     <RecordDrawer
       v-if="selected"
       :record="selected"
-      :role="'ADMIN'"
+      :role="auth.user?.role ?? 'ADMIN'"
       @close="closeDrawer"
       @saved="refreshSelected"
       @submitted="refreshSelected"

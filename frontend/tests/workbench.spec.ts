@@ -1,6 +1,8 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { flushPromises, mount } from '@vue/test-utils';
+import { createPinia, setActivePinia } from 'pinia';
+import { useAuthStore } from '../src/stores/auth';
 import EmployeeWorkbench from '../src/views/employee/ReimbursementListView.vue';
 import AdminWorkbench from '../src/views/admin/ReimbursementAdminView.vue';
 import http from '../src/api/http';
@@ -16,8 +18,11 @@ const records = [
 
 describe('workbench pages', () => {
   beforeEach(() => {
+    setActivePinia(createPinia());
+    useAuthStore().user = { id: 1, username: 'admin', displayName: '管理员', department: '管理部', role: 'ADMIN' };
     vi.clearAllMocks();
     vi.mocked(http.get).mockImplementation((url: string) => {
+      if (url === '/oa-numbers' || url === '/admin/oa-numbers') return Promise.resolve({ data: [] });
       if (url === '/categories' || url === '/admin/categories') return Promise.resolve({ data: [{ id: 1, name: '差旅费', enabled: true, sortOrder: 1, remark: '' }] });
       if (url === '/admin/employees') return Promise.resolve({ data: [{ id: 2, username: 'emp', displayName: '员工一', department: '研发部', role: 'EMPLOYEE', enabled: true }] });
       return Promise.resolve({ data: records });
@@ -40,6 +45,7 @@ describe('workbench pages', () => {
     const refreshedRecords = records.map((record) => (record.id === 2 ? { ...record, purpose: '晚餐', attachments: [] } : record));
     let reimbursementCalls = 0;
     vi.mocked(http.get).mockImplementation((url: string) => {
+      if (url === '/oa-numbers' || url === '/admin/oa-numbers') return Promise.resolve({ data: [] });
       if (url === '/categories') return Promise.resolve({ data: [{ id: 1, name: '差旅费', enabled: true, sortOrder: 1, remark: '' }] });
       reimbursementCalls += 1;
       return Promise.resolve({ data: reimbursementCalls === 1 ? records : refreshedRecords });
