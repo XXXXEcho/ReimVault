@@ -40,6 +40,18 @@ describe('RecordDrawer', () => {
     expect(wrapper.find('[data-test="submit-draft"]').exists()).toBe(false);
   });
 
+  it('allows employee to withdraw submitted record and loads categories for editing', async () => {
+    vi.mocked(http.post).mockResolvedValue({ data: { ...submitted, status: 'DRAFT', submittedAt: null } });
+    const wrapper = mount(RecordDrawer, { props: { record: submitted, role: 'EMPLOYEE' } });
+    await flushPromises();
+
+    await wrapper.find('[data-test="withdraw-submitted"]').trigger('click');
+    await flushPromises();
+
+    expect(http.post).toHaveBeenCalledWith('/reimbursements/2/withdraw');
+    expect(http.get).toHaveBeenCalledWith('/categories');
+  });
+
   it('allows admin to save remark for submitted record', async () => {
     vi.mocked(http.patch).mockResolvedValue({ data: { ...submitted, adminRemark: '已核对' } });
     const wrapper = mount(RecordDrawer, { props: { record: submitted, role: 'ADMIN' } });

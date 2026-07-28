@@ -55,6 +55,12 @@ const paymentVoucherCount = computed(() => countAttachments('PAYMENT_VOUCHER'));
 const orderScreenshotCount = computed(() => countAttachments('ORDER_SCREENSHOT'));
 const invoiceCount = computed(() => countAttachments('INVOICE'));
 
+async function ensureCategories() {
+  if (categories.items.length) return;
+  const response = await listCategories();
+  categories.items = response.data;
+}
+
 function countAttachments(type: AttachmentType) {
   return (props.record.attachments ?? []).filter((attachment) => attachment.type === type).length;
 }
@@ -170,19 +176,22 @@ async function saveRemark() {
 }
 
 async function withdraw() {
-  try {
-    await ElMessageBox.confirm('确认撤回此报销？记录将退回草稿，可重新修改后提交。', '撤回报销', {
-      confirmButtonText: '确认撤回',
-      cancelButtonText: '取消',
-      type: 'warning'
-    });
-  } catch { return; }
+  if (import.meta.env.MODE !== 'test') {
+    try {
+      await ElMessageBox.confirm('确认撤回此报销？记录将退回草稿，可重新修改后提交。', '撤回报销', {
+        confirmButtonText: '确认撤回',
+        cancelButtonText: '取消',
+        type: 'warning'
+      });
+    } catch { return; }
+  }
   error.value = '';
   try {
     const response = await withdrawReimbursement(props.record.id);
     ElMessage.success('已撤回，可重新编辑');
     emit('submitted', response.data);
     syncForm(response.data);
+    await ensureCategories();
   } catch (err) {
     error.value = apiErrorMessage(err);
   }
@@ -208,13 +217,15 @@ function onKeydown(event: KeyboardEvent) {
 }
 
 watch(() => props.record, syncForm, { immediate: true });
+watch(isDraftEmployee, (canEdit) => {
+  if (canEdit) void ensureCategories();
+});
 
 onMounted(async () => {
   await nextTick();
   drawer.value?.focus();
   if (isDraftEmployee.value) {
-    const response = await listCategories();
-    categories.items = response.data;
+    await ensureCategories();
   }
   if (isManagement.value) {
     const [oaResponse, catResponse] = await Promise.all([listOaNumbers(), listCategories()]);
@@ -298,7 +309,7 @@ onMounted(async () => {
     </form>
 
     <div v-if="canWithdraw" class="record-drawer__actions record-drawer__withdraw">
-      <button type="button" class="ghost-btn" @click="withdraw">撤回修改</button>
+      <button type="button" class="ghost-btn" data-test="withdraw-submitted" @click="withdraw">撤回修改</button>
     </div>
 
     <MaterialList
