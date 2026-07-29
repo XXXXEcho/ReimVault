@@ -11,6 +11,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   open: [record: ReimbursementRecord];
+  submit: [record: ReimbursementRecord];
   'update:selectedIds': [ids: number[]];
 }>();
 
@@ -72,6 +73,7 @@ function toggleAll(checked: boolean) {
           <th v-if="props.admin">批次</th>
           <th v-if="props.admin" class="workbench-table__remark-col">管理员备注</th>
           <th>材料</th>
+          <th v-if="!props.admin" class="workbench-table__actions">操作</th>
         </tr>
       </thead>
       <tbody>
@@ -109,6 +111,16 @@ function toggleAll(checked: boolean) {
               :order-screenshot-count="attachmentCount(record, 'ORDER_SCREENSHOT')"
               :invoice-count="attachmentCount(record, 'INVOICE')"
             />
+          </td>
+          <td v-if="!props.admin" class="workbench-table__actions" @click.stop>
+            <button
+              v-if="record.status === 'DRAFT' && attachmentCount(record, 'PAYMENT_VOUCHER') > 0"
+              type="button"
+              class="ghost-btn"
+              :data-test="`submit-row-${record.id}`"
+              @click="emit('submit', record)"
+            >提交</button>
+            <span v-else-if="record.status === 'DRAFT'" class="workbench-table__hint">缺支付凭证</span>
           </td>
         </tr>
       </tbody>
@@ -170,5 +182,16 @@ function toggleAll(checked: boolean) {
   -webkit-line-clamp: 2;
   line-clamp: 2;
   -webkit-box-orient: vertical;
+}
+
+.workbench-table__actions {
+  width: 1%;
+  white-space: nowrap;
+  text-align: right;
+}
+
+.workbench-table__hint {
+  color: var(--color-text-subtle);
+  font-size: 0.8125rem;
 }
 </style>

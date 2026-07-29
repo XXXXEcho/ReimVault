@@ -52,6 +52,29 @@ describe('workbench pages', () => {
     expect(wrapper.find('[data-test="save-draft"]').exists()).toBe(true);
   });
 
+  it('shows a submit button on draft rows with a payment voucher in my-reimbursements', async () => {
+    const draftWithVoucher = {
+      ...records[0],
+      attachments: [{ id: 9, type: 'PAYMENT_VOUCHER', originalFilename: 'draft-pay.png', contentType: 'image/png', sizeBytes: 12, createdAt: '2026-05-21T03:00:00Z' }]
+    };
+    vi.mocked(http.get).mockImplementation((url: string) => {
+      if (url === '/oa-numbers' || url === '/admin/oa-numbers') return Promise.resolve({ data: [] });
+      if (url === '/categories' || url === '/admin/categories') return Promise.resolve({ data: [{ id: 1, name: '差旅费', enabled: true, sortOrder: 1, remark: '' }] });
+      if (url === '/admin/employees') return Promise.resolve({ data: [{ id: 2, username: 'emp', displayName: '员工一', department: '研发部', role: 'EMPLOYEE', enabled: true }] });
+      return Promise.resolve({ data: [draftWithVoucher, records[1]] });
+    });
+    vi.mocked(http.post).mockResolvedValue({ data: { ...draftWithVoucher, status: 'SUBMITTED' } });
+    const wrapper = mount(EmployeeWorkbench, { global: { stubs: ['RouterLink'] } });
+    await flushPromises();
+
+    const submitBtn = wrapper.find('[data-test="submit-row-1"]');
+    expect(submitBtn.exists()).toBe(true);
+    await submitBtn.trigger('click');
+    await flushPromises();
+
+    expect(http.post).toHaveBeenCalledWith('/reimbursements/1/submit');
+  });
+
   it('reloads employee records and keeps selected record synced after drawer saved event', async () => {
     const refreshedRecords = records.map((record) => (record.id === 2 ? { ...record, purpose: '晚餐', attachments: [] } : record));
     let reimbursementCalls = 0;

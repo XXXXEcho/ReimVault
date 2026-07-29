@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
 import { RouterLink } from 'vue-router';
+import { ElMessage, ElMessageBox } from 'element-plus';
 import EmptyState from '../../components/EmptyState.vue';
 import MaterialPreviewer from '../../components/MaterialPreviewer.vue';
 import MetricCard from '../../components/MetricCard.vue';
@@ -9,6 +10,7 @@ import WorkbenchFilters from '../../components/WorkbenchFilters.vue';
 import WorkbenchRecordTable from '../../components/WorkbenchRecordTable.vue';
 import {
   listReimbursements,
+  submitReimbursement,
   type EmployeeReimbursementFilters,
   type ReimbursementRecord,
   type ReimbursementStatus
@@ -53,6 +55,36 @@ function hasPaymentVoucher(record: ReimbursementRecord) {
   return (record.attachments ?? []).some((attachment) => attachment.type === 'PAYMENT_VOUCHER');
 }
 
+function apiErrorMessage(err: unknown) {
+  if (typeof err === 'object' && err && 'response' in err) {
+    const response = (err as { response?: { data?: { message?: string } } }).response;
+    if (response?.data?.message) return response.data.message;
+  }
+  return '操作失败';
+}
+
+async function submitRecord(record: ReimbursementRecord) {
+  if (import.meta.env.MODE !== 'test') {
+    try {
+      await ElMessageBox.confirm(`确认提交 ${Number(record.amount).toFixed(2)} 元的报销？提交后将进入报销专员处理。`, '提交报销', {
+        confirmButtonText: '确认提交',
+        cancelButtonText: '取消',
+        type: 'info'
+      });
+    } catch {
+      return;
+    }
+  }
+  try {
+    await submitReimbursement(record.id);
+    ElMessage.success('报销已提交');
+    selected.value = null;
+    await load();
+  } catch (err) {
+    ElMessage.error(apiErrorMessage(err));
+  }
+}
+
 const previewAttachments = computed(() => selected.value?.attachments ?? []);
 
 const metrics = computed(() => ({
@@ -86,7 +118,7 @@ onMounted(load);
 
     <WorkbenchFilters v-model="filters" @apply="load" @reset="resetFilters" />
 
-    <WorkbenchRecordTable v-if="records.length" :records="records" @open="selected = $event; previewAttachmentId = null" />
+    <WorkbenchRecordTable v-if="records.length" :records="records" @open="selected = $event; previewAttachmentId = null" @submit="submitRecord" />
     <EmptyState v-else title="暂无报销记录" description="创建第一条报销后，它会显示在这里。">
       <template #action>
         <RouterLink class="primary-action" to="/reimbursements/new">新建报销</RouterLink>
