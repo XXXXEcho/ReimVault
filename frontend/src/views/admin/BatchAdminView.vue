@@ -227,6 +227,7 @@ onMounted(async () => {
               <th>分类</th>
               <th>用途</th>
               <th>经费编码</th>
+              <th>批次</th>
               <th>支付时间</th>
             </tr>
           </thead>
@@ -238,6 +239,7 @@ onMounted(async () => {
               <td>{{ record.categoryName }}</td>
               <td>{{ record.purpose }}</td>
               <td>{{ record.oaNumber || '-' }}</td>
+              <td>{{ record.batchName || '未入批次' }}</td>
               <td>{{ formatTime(record.paymentTime) }}</td>
             </tr>
           </tbody>

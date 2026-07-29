@@ -283,6 +283,26 @@ describe('admin views', () => {
     expect(wrapper.text()).toContain('暂无可加入批次的记录');
   });
 
+  it('shows each preview record batch assignment', async () => {
+    vi.mocked(http.get).mockImplementation((url: string) => {
+      if (url === '/admin/categories') return Promise.resolve({ data: [] });
+      if (url === '/admin/employees') return Promise.resolve({ data: [] });
+      if (url === '/admin/reimbursements') return Promise.resolve({ data: [
+        { id: 99, employeeId: 2, employeeName: '员工一', amount: 128, categoryId: 3, categoryName: '办公用品', purpose: '五月命中', paymentTime: '2026-05-10T10:00:00Z', status: 'SUBMITTED', adminRemark: '', submittedAt: '2026-05-11T10:00:00Z', archivedAt: null, batchId: 6, batchName: '六月批次', attachments: [] },
+        { id: 100, employeeId: 3, employeeName: '员工二', amount: 256, categoryId: 3, categoryName: '办公用品', purpose: '未归集记录', paymentTime: '2026-06-10T10:00:00Z', status: 'SUBMITTED', adminRemark: '', submittedAt: '2026-06-11T10:00:00Z', archivedAt: null, batchId: null, batchName: null, attachments: [] }
+      ] });
+      return Promise.resolve({ data: [] });
+    });
+
+    const wrapper = mount(BatchAdminView, { global: { stubs: ['el-table', 'el-table-column', 'el-form', 'el-form-item', 'el-input', 'el-button'] } });
+    await vi.waitFor(() => expect(wrapper.text()).toContain('未归集记录'));
+    const previewTable = wrapper.find('.table-scroll table');
+
+    expect(previewTable.findAll('th').map((cell) => cell.text())).toContain('批次');
+    expect(previewTable.text()).toContain('六月批次');
+    expect(previewTable.text()).toContain('未入批次');
+  });
+
   it('selects all preview records before adding them to the current batch', async () => {
     vi.mocked(http.get).mockImplementation((url: string) => {
       if (url === '/admin/categories') return Promise.resolve({ data: [] });
