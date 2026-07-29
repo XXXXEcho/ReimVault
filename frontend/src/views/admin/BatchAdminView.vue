@@ -8,6 +8,7 @@ import {
   addBatchItems,
   archiveBatch,
   createBatch,
+  ensureMonthlyBatch,
   exportBatchAttachments,
   exportBatchExcel,
   getBatch,
@@ -114,6 +115,18 @@ async function saveBatch() {
     advanced.batchId = response.data.id;
     await loadBatches();
     ElMessage.success('批次已创建');
+  } catch (err) {
+    ElMessage.error(apiErrorMessage(err));
+  }
+}
+
+async function useMonthlyBatch() {
+  try {
+    const response = await ensureMonthlyBatch();
+    current.value = response.data;
+    advanced.batchId = response.data.id;
+    await loadBatches();
+    ElMessage.success('已切换到本月批次');
   } catch (err) {
     ElMessage.error(apiErrorMessage(err));
   }
@@ -235,6 +248,7 @@ onMounted(async () => {
         <input aria-label="批次名称" v-model="form.name" placeholder="例如 2026年6月报销批次" />
         <input aria-label="批次描述" v-model="form.description" placeholder="说明，可选" />
         <button type="submit">创建并选中</button>
+        <button type="button" class="ghost-btn" data-test="ensure-monthly-batch" @click="useMonthlyBatch">创建/使用本月批次</button>
       </form>
       <div class="batch-list">
         <button v-for="batch in batches" :key="batch.id" type="button" :class="{ active: current?.id === batch.id }" @click="loadBatch(batch.id)">
@@ -244,6 +258,11 @@ onMounted(async () => {
     </section>
 
     <section class="enterprise-card batch-card">
+      <div class="current-batch enterprise-card" data-test="current-batch-summary">
+        <p class="eyebrow">当前批次</p>
+        <h2>{{ current?.name ?? '未选择批次' }}</h2>
+        <p>{{ current ? '勾选记录后加入当前批次' : '先创建或选择一个批次，再勾选待报销记录加入。' }}</p>
+      </div>
       <div class="current-header">
         <div>
           <h2>3. 加入批次并导出</h2>
@@ -312,6 +331,17 @@ onMounted(async () => {
 
 .batch-card {
   padding: var(--space-5);
+}
+
+.current-batch {
+  gap: var(--space-2);
+  padding: var(--space-4);
+  background: var(--color-surface-muted);
+}
+
+.current-batch h2,
+.current-batch p {
+  margin: 0;
 }
 
 .section-subtitle {

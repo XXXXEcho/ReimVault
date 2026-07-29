@@ -240,8 +240,32 @@ describe('admin views', () => {
 
     await wrapper.findAll('button').find((button) => button.text().includes('五月批次'))?.trigger('click');
     await vi.waitFor(() => expect(wrapper.text()).toContain('当前批次：五月批次'));
+    expect(wrapper.find('[data-test="current-batch-summary"]').text()).toContain('当前批次');
+    expect(wrapper.find('[data-test="current-batch-summary"]').text()).toContain('勾选记录后加入当前批次');
     expect(wrapper.find('[data-test="export-excel"]').attributes('disabled')).toBeUndefined();
     expect(wrapper.find('[data-test="export-attachments"]').attributes('disabled')).toBeUndefined();
+  });
+
+  it('creates or selects the current monthly batch from batch management', async () => {
+    vi.mocked(http.get).mockImplementation((url: string) => {
+      if (url === '/admin/batches') return Promise.resolve({ data: [{ id: 7, name: '2026年7月报销批次', description: '月度报销', archivedAt: null, items: [] }] });
+      if (url === '/admin/categories') return Promise.resolve({ data: [] });
+      if (url === '/admin/employees') return Promise.resolve({ data: [] });
+      if (url === '/oa-numbers') return Promise.resolve({ data: [] });
+      if (url === '/admin/reimbursements') return Promise.resolve({ data: [] });
+      return Promise.resolve({ data: [] });
+    });
+    vi.mocked(http.post).mockImplementation((url: string) => {
+      if (url === '/admin/batches/monthly') return Promise.resolve({ data: { id: 7, name: '2026年7月报销批次', description: '月度报销', archivedAt: null, items: [] } });
+      return Promise.resolve({ data: {} });
+    });
+
+    const wrapper = mount(BatchAdminView, { global: { stubs: ['el-table', 'el-table-column', 'el-form', 'el-form-item', 'el-input', 'el-button'] } });
+    await vi.waitFor(() => expect(wrapper.find('[data-test="ensure-monthly-batch"]').exists()).toBe(true));
+    await wrapper.find('[data-test="ensure-monthly-batch"]').trigger('click');
+
+    await vi.waitFor(() => expect(http.post).toHaveBeenCalledWith('/admin/batches/monthly'));
+    expect(wrapper.text()).toContain('2026年7月报销批次');
   });
 
   it('shows preview errors without leaving the page stuck', async () => {
