@@ -31,6 +31,7 @@ const notice = ref('');
 const money = new Intl.NumberFormat('zh-CN', { style: 'currency', currency: 'CNY' });
 const currentBatchId = computed(() => current.value?.id ?? advanced.batchId ?? null);
 const canJoin = computed(() => Boolean(currentBatchId.value && selectedPreviewIds.value.length));
+const allPreviewSelected = computed(() => previewRecords.value.length > 0 && selectedPreviewIds.value.length === previewRecords.value.length);
 
 function params(): AdminReimbursementFilters {
   const next: AdminReimbursementFilters = {};
@@ -79,6 +80,10 @@ function togglePreview(id: number, checked: boolean) {
   if (checked) next.add(id);
   else next.delete(id);
   selectedPreviewIds.value = [...next];
+}
+
+function toggleAllPreview(checked: boolean) {
+  selectedPreviewIds.value = checked ? previewRecords.value.map((record) => record.id) : [];
 }
 
 function resetFilters() {
@@ -216,7 +221,7 @@ onMounted(async () => {
         <table>
           <thead>
             <tr>
-              <th>选择</th>
+              <th><input aria-label="全选当前查询结果" type="checkbox" :checked="allPreviewSelected" @change="toggleAllPreview(($event.target as HTMLInputElement).checked)" /></th>
               <th>员工</th>
               <th>金额</th>
               <th>分类</th>

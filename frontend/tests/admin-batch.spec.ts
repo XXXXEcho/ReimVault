@@ -283,6 +283,32 @@ describe('admin views', () => {
     expect(wrapper.text()).toContain('暂无可加入批次的记录');
   });
 
+  it('selects all preview records before adding them to the current batch', async () => {
+    vi.mocked(http.get).mockImplementation((url: string) => {
+      if (url === '/admin/categories') return Promise.resolve({ data: [] });
+      if (url === '/admin/employees') return Promise.resolve({ data: [] });
+      if (url === '/admin/reimbursements') return Promise.resolve({ data: [
+        { id: 99, employeeId: 2, employeeName: '员工一', amount: 128, categoryId: 3, categoryName: '办公用品', purpose: '五月命中', paymentTime: '2026-05-10T10:00:00Z', status: 'SUBMITTED', adminRemark: '', submittedAt: '2026-05-11T10:00:00Z', archivedAt: null, attachments: [] },
+        { id: 100, employeeId: 3, employeeName: '员工二', amount: 256, categoryId: 3, categoryName: '办公用品', purpose: '六月命中', paymentTime: '2026-06-10T10:00:00Z', status: 'SUBMITTED', adminRemark: '', submittedAt: '2026-06-11T10:00:00Z', archivedAt: null, attachments: [] }
+      ] });
+      if (url === '/admin/batches/1') return Promise.resolve({ data: { id: 1, name: '五月批次', items: [] } });
+      return Promise.resolve({ data: [] });
+    });
+    vi.mocked(http.post).mockImplementation((url: string) => {
+      if (url === '/admin/batches/1/items') return Promise.resolve({ data: { id: 1, name: '五月批次', items: [] } });
+      return Promise.resolve({ data: {} });
+    });
+
+    const wrapper = mount(BatchAdminView, { global: { stubs: ['el-table', 'el-table-column', 'el-form', 'el-form-item', 'el-input', 'el-button'] } });
+    await vi.waitFor(() => expect(wrapper.text()).toContain('六月命中'));
+    await wrapper.find('[aria-label="批次ID"]').setValue('1');
+    await wrapper.find('[data-test="load-batch"]').trigger('click');
+    await wrapper.find('[aria-label="全选当前查询结果"]').setValue(true);
+    await wrapper.findAll('button').find((button) => button.text() === '加入选中记录')?.trigger('click');
+
+    expect(http.post).toHaveBeenCalledWith('/admin/batches/1/items', { recordIds: [99, 100] });
+  });
+
   it('adds selected records to a batch and downloads Excel and attachment exports', async () => {
     Object.defineProperty(URL, 'createObjectURL', { value: vi.fn(), configurable: true });
     Object.defineProperty(URL, 'revokeObjectURL', { value: vi.fn(), configurable: true });
