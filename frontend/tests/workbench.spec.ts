@@ -41,6 +41,17 @@ describe('workbench pages', () => {
     expect(wrapper.text()).toContain('客户拜访');
   });
 
+  it('lets an admin edit their own draft in my-reimbursements', async () => {
+    const wrapper = mount(EmployeeWorkbench, { global: { stubs: ['RouterLink'] } });
+    await flushPromises();
+
+    await wrapper.find('[data-test="record-row-1"]').trigger('click');
+    await flushPromises();
+
+    expect(wrapper.find('[aria-label="金额"]').attributes('disabled')).toBeUndefined();
+    expect(wrapper.find('[data-test="save-draft"]').exists()).toBe(true);
+  });
+
   it('reloads employee records and keeps selected record synced after drawer saved event', async () => {
     const refreshedRecords = records.map((record) => (record.id === 2 ? { ...record, purpose: '晚餐', attachments: [] } : record));
     let reimbursementCalls = 0;

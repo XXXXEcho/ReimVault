@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
 import { RouterLink } from 'vue-router';
-import { useAuthStore } from '../../stores/auth';
 import EmptyState from '../../components/EmptyState.vue';
 import MaterialPreviewer from '../../components/MaterialPreviewer.vue';
 import MetricCard from '../../components/MetricCard.vue';
@@ -15,7 +14,6 @@ import {
   type ReimbursementStatus
 } from '../../api/reimbursements';
 
-const auth = useAuthStore();
 const records = ref<ReimbursementRecord[]>([]);
 const selected = ref<ReimbursementRecord | null>(null);
 const previewAttachmentId = ref<number | null>(null);
@@ -98,7 +96,7 @@ onMounted(load);
     <RecordDrawer
       v-if="selected"
       :record="selected"
-      :role="auth.user?.role ?? 'EMPLOYEE'"
+      :role="'EMPLOYEE'"
       @close="closeDrawer"
       @saved="refreshSelected"
       @submitted="refreshSelected"
