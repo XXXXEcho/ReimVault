@@ -1,11 +1,9 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
+import { useRouter } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import { useAuthStore } from '../../stores/auth';
 import EmptyState from '../../components/EmptyState.vue';
-import MaterialPreviewer from '../../components/MaterialPreviewer.vue';
 import MetricCard from '../../components/MetricCard.vue';
-import RecordDrawer from '../../components/RecordDrawer.vue';
 import WorkbenchFilters from '../../components/WorkbenchFilters.vue';
 import WorkbenchRecordTable from '../../components/WorkbenchRecordTable.vue';
 import {
@@ -17,11 +15,9 @@ import {
   type ReimbursementStatus
 } from '../../api/reimbursements';
 
-const auth = useAuthStore();
+const router = useRouter();
 const records = ref<ReimbursementRecord[]>([]);
-const selected = ref<ReimbursementRecord | null>(null);
 const selectedIds = ref<number[]>([]);
-const previewAttachmentId = ref<number | null>(null);
 const filters = ref({ employeeId: '', categoryId: '', status: 'SUBMITTED', from: '', to: '', keyword: '', oaId: '', reimbursed: '' });
 const loading = ref(false);
 const error = ref('');
@@ -53,16 +49,9 @@ async function load() {
   }
 }
 
-async function refreshSelected(record: ReimbursementRecord) {
-  await load();
-  selected.value = records.value.find((item) => item.id === record.id) ?? record;
-}
-
 function hasPaymentVoucher(record: ReimbursementRecord) {
   return (record.attachments ?? []).some((attachment) => attachment.type === 'PAYMENT_VOUCHER');
 }
-
-const previewAttachments = computed(() => selected.value?.attachments ?? []);
 
 const metrics = computed(() => ({
   draft: records.value.filter((record) => record.status === 'DRAFT').length,
@@ -106,14 +95,8 @@ async function runBulkAction(action: BulkReimbursementAction, label: string) {
   }
 }
 
-function openDrawer(record: ReimbursementRecord) {
-  selected.value = record;
-  previewAttachmentId.value = null;
-}
-
-function closeDrawer() {
-  selected.value = null;
-  previewAttachmentId.value = null;
+function openRecord(record: ReimbursementRecord) {
+  router.push(`/admin/reimbursements/${record.id}`);
 }
 
 onMounted(load);
@@ -153,24 +136,9 @@ onMounted(load);
     </div>
 
     <p v-if="loading" class="loading">加载报销记录中...</p>
-    <WorkbenchRecordTable v-else-if="records.length" v-model:selected-ids="selectedIds" :records="records" admin @open="openDrawer" />
+    <WorkbenchRecordTable v-else-if="records.length" v-model:selected-ids="selectedIds" :records="records" admin @open="openRecord" />
     <EmptyState v-else title="暂无待处理记录" description="符合筛选条件的报销会显示在这里。" />
 
-    <RecordDrawer
-      v-if="selected"
-      :record="selected"
-      :role="auth.user?.role ?? 'ADMIN'"
-      @close="closeDrawer"
-      @saved="refreshSelected"
-      @submitted="refreshSelected"
-      @preview="previewAttachmentId = $event"
-    />
-    <MaterialPreviewer
-      v-if="previewAttachmentId"
-      :attachments="previewAttachments"
-      :active-id="previewAttachmentId"
-      @close="previewAttachmentId = null"
-    />
   </section>
 </template>
 

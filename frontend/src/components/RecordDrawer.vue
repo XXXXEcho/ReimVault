@@ -21,6 +21,7 @@ import StatusTag from './StatusTag.vue';
 const props = defineProps<{
   record: ReimbursementRecord;
   role: 'EMPLOYEE' | 'SPECIALIST' | 'ADMIN';
+  presentation?: 'drawer' | 'page';
 }>();
 
 const emit = defineEmits<{
@@ -31,6 +32,7 @@ const emit = defineEmits<{
 }>();
 
 const drawer = ref<HTMLElement | null>(null);
+const isPage = computed(() => props.presentation === 'page');
 const categories = reactive<{ items: Category[] }>({ items: [] });
 const form = reactive({
   amount: 0,
@@ -213,7 +215,7 @@ async function saveOa() {
 }
 
 function onKeydown(event: KeyboardEvent) {
-  if (event.key === 'Escape') emit('close');
+  if (event.key === 'Escape' && !isPage.value) emit('close');
 }
 
 watch(() => props.record, syncForm, { immediate: true });
@@ -223,7 +225,7 @@ watch(isDraftEmployee, (canEdit) => {
 
 onMounted(async () => {
   await nextTick();
-  drawer.value?.focus();
+  if (!isPage.value) drawer.value?.focus();
   if (isDraftEmployee.value) {
     await ensureCategories();
   }
@@ -237,8 +239,8 @@ onMounted(async () => {
 </script>
 
 <template>
-  <aside ref="drawer" class="record-drawer" role="dialog" aria-label="记录详情" aria-modal="true" tabindex="-1" @keydown="onKeydown">
-    <button class="record-drawer__close" type="button" aria-label="关闭记录详情" @click="emit('close')">关闭</button>
+  <aside ref="drawer" class="record-drawer" :class="{ 'record-drawer--page': isPage }" :role="isPage ? undefined : 'dialog'" aria-label="记录详情" :aria-modal="isPage ? undefined : 'true'" tabindex="-1" @keydown="onKeydown">
+    <button class="record-drawer__close" type="button" :aria-label="isPage ? '返回报销列表' : '关闭记录详情'" @click="emit('close')">{{ isPage ? '返回列表' : '关闭' }}</button>
     <p v-if="error" class="record-drawer__error" role="alert">{{ error }}</p>
 
     <header class="record-drawer__header">
@@ -357,6 +359,17 @@ onMounted(async () => {
   border-left: 1px solid var(--color-border);
   background: var(--color-surface);
   box-shadow: var(--shadow-lg);
+}
+
+.record-drawer--page {
+  position: static;
+  width: min(1080px, 100%);
+  height: auto;
+  min-height: 0;
+  margin: 0 auto;
+  overflow: visible;
+  border: 0;
+  box-shadow: none;
 }
 
 .record-drawer__header {
@@ -488,6 +501,10 @@ onMounted(async () => {
 
 .record-drawer__close {
   justify-self: end;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--color-surface);
 }
 
 .record-drawer__actions {

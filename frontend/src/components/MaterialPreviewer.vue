@@ -14,6 +14,7 @@ const emit = defineEmits<{
 const root = ref<HTMLElement | null>(null);
 const closeButton = ref<HTMLButtonElement | null>(null);
 const currentId = ref(props.activeId);
+const zoom = ref(1);
 let previousFocus: Element | null = null;
 
 const currentIndex = computed(() => props.attachments.findIndex((attachment) => attachment.id === currentId.value));
@@ -37,6 +38,14 @@ function move(delta: number) {
   const start = currentIndex.value >= 0 ? currentIndex.value : 0;
   const next = (start + delta + props.attachments.length) % props.attachments.length;
   currentId.value = props.attachments[next].id;
+}
+
+function fitToScreen() {
+  zoom.value = 1;
+}
+
+function changeZoom(delta: number) {
+  zoom.value = Math.min(2, Math.max(0.5, Number((zoom.value + delta).toFixed(2))));
 }
 
 function focusableControls() {
@@ -80,10 +89,16 @@ function onKeydown(event: KeyboardEvent) {
     move(-1);
     return;
   }
+  if (event.key === '0') fitToScreen();
+  if (event.key === '+' || event.key === '=') changeZoom(0.25);
+  if (event.key === '-') changeZoom(-0.25);
   if (event.key === 'Tab') trapTab(event);
 }
 
-watch(() => [props.activeId, props.attachments] as const, syncActive, { deep: true });
+watch(() => [props.activeId, props.attachments] as const, () => {
+  syncActive();
+  fitToScreen();
+}, { deep: true });
 
 onMounted(async () => {
   previousFocus = document.activeElement;
@@ -107,6 +122,10 @@ onBeforeUnmount(() => {
         <h2>{{ filename }}</h2>
       </div>
       <div class="material-previewer__actions">
+        <button v-if="isImage" type="button" aria-label="适应窗口" @click="fitToScreen">适应窗口</button>
+        <button v-if="isImage" type="button" aria-label="缩小图片" :disabled="zoom <= 0.5" @click="changeZoom(-0.25)">−</button>
+        <output v-if="isImage" class="material-previewer__zoom" aria-label="当前缩放比例">{{ Math.round(zoom * 100) }}%</output>
+        <button v-if="isImage" type="button" aria-label="放大图片" :disabled="zoom >= 2" @click="changeZoom(0.25)">+</button>
         <a v-if="current" data-test="download-active" :href="src" :download="filename" target="_blank" rel="noopener">下载</a>
         <button ref="closeButton" type="button" data-test="close-preview" @click="emit('close')">关闭</button>
       </div>
@@ -115,7 +134,7 @@ onBeforeUnmount(() => {
     <main class="material-previewer__body">
       <button type="button" data-test="previous-preview" :disabled="!hasMultiple" aria-label="上一份材料" @click="move(-1)">上一份</button>
       <div class="material-previewer__stage">
-        <img v-if="current && isImage" :src="src" :alt="filename" />
+        <img v-if="current && isImage" :src="src" :alt="filename" :class="{ 'material-previewer__image--zoomed': zoom !== 1 }" :style="zoom === 1 ? undefined : { width: `${zoom * 100}%` }" />
         <object v-else-if="current && isPdf" :data="src" type="application/pdf" :title="filename" :aria-label="filename">
           <a :href="src" :download="filename" target="_blank" rel="noopener">下载 {{ filename }}</a>
         </object>
@@ -189,6 +208,12 @@ onBeforeUnmount(() => {
   text-decoration: none;
 }
 
+.material-previewer__zoom {
+  min-width: 54px;
+  text-align: center;
+  font-weight: 700;
+}
+
 .material-previewer__actions button,
 .material-previewer__body > button {
   cursor: pointer;
@@ -210,7 +235,7 @@ onBeforeUnmount(() => {
   height: 100%;
   display: grid;
   place-items: center;
-  overflow: hidden;
+  overflow: auto;
   border-radius: var(--radius-lg);
   background: rgba(255, 255, 255, 0.08);
 }
@@ -218,9 +243,20 @@ onBeforeUnmount(() => {
 .material-previewer__stage img,
 .material-previewer__stage object {
   max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+}
+
+.material-previewer__stage img.material-previewer__image--zoomed {
+  max-width: none;
+  max-height: none;
+}
+
+.material-previewer__stage object {
   width: 100%;
   height: 100%;
-  object-fit: contain;
 }
 
 .material-previewer__fallback {

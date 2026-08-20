@@ -99,17 +99,17 @@ describe('MaterialPreviewer', () => {
     const wrapper = mount(MaterialPreviewer, { props: { attachments, activeId: 1 }, attachTo: document.body });
     await wrapper.vm.$nextTick();
 
-    const download = wrapper.find<HTMLAnchorElement>('[data-test="download-active"]').element;
+    const fit = wrapper.find<HTMLButtonElement>('[aria-label="适应窗口"]').element;
     const next = wrapper.find<HTMLButtonElement>('[data-test="next-preview"]').element;
     const dialog = wrapper.find('[aria-label="材料预览"]');
 
-    download.focus();
+    fit.focus();
     await dialog.trigger('keydown', { key: 'Tab', shiftKey: true });
     expect(document.activeElement).toBe(next);
 
     next.focus();
     await dialog.trigger('keydown', { key: 'Tab' });
-    expect(document.activeElement).toBe(download);
+    expect(document.activeElement).toBe(fit);
   });
 
   it('includes unsupported fallback links in the focus trap', async () => {
